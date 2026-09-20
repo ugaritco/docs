@@ -8,8 +8,10 @@
     - [Rolling Back Migrations](#rolling-back-migrations)
 - [Tables](#tables)
     - [Creating Tables](#creating-tables)
+    - [Creating Translatable Tables](#creating-translatable-tables)
     - [Updating Tables](#updating-tables)
     - [Renaming / Dropping Tables](#renaming-and-dropping-tables)
+
 - [Columns](#columns)
     - [Creating Columns](#creating-columns)
     - [Available Column Types](#available-column-types)
@@ -44,8 +46,18 @@ Ugarit will use the name of the migration to attempt to guess the name of the ta
 
 If you would like to specify a custom path for the generated migration, you may use the `--path` option when executing the `make:migration` command. The given path should be relative to your application's base path.
 
+To generate a migration that creates a table with an accompanying translation table, you may provide the `-t` or `--trans` option to the `make:migration` command:
+
+```shell
+php scribe make:migration create_products_table -t
+
+# Or using the full option:
+php scribe make:migration create_products_table --trans
+```
+
 > [!NOTE]
 > Migration stubs may be customized using [stub publishing](/docs/{{version}}/scribe#stub-customization).
+
 
 <a name="squashing-migrations"></a>
 ### Squashing Migrations
@@ -294,6 +306,31 @@ Schema::create('users', function (Blueprint $table) {
 ```
 
 When creating the table, you may use any of the schema builder's [column methods](#creating-columns) to define the table's columns.
+
+<a name="creating-translatable-tables"></a>
+### Creating Translatable Tables
+
+To create a table alongside an automatic translation table, use the `createWithTranslation` method on the `Schema` facade. The method creates both the base table and its corresponding `{singular}_translations` table with foreign key constraints, cascading deletion, a compound unique index on `[{singular}_id, locale]`, and any columns marked with `->translation()`:
+
+```php
+use Heritage\Database\Schema\Blueprint;
+use Heritage\Support\Facades\Schema;
+
+Schema::createWithTranslation('products', function (Blueprint $table) {
+    $table->id();
+    $table->string('slug')->unique();
+    $table->string('name')->translation();
+    $table->text('description')->nullable()->translation();
+    $table->timestamps();
+});
+```
+
+To drop both tables safely in reverse order (translation table first, then main table) during rollback, use `dropIfExistsWithTranslation`:
+
+```php
+Schema::dropIfExistsWithTranslation('products');
+```
+
 
 <a name="determining-table-column-existence"></a>
 #### Determining Table / Column Existence
@@ -1250,6 +1287,9 @@ The following table contains all of the available column modifiers. This list do
 | `->virtualAs($expression)`          | Create a virtual generated column (MariaDB / MySQL / SQLite).                                  |
 | `->generatedAs($expression)`        | Create an identity column with specified sequence options (PostgreSQL).                        |
 | `->always()`                        | Defines the precedence of sequence values over input for an identity column (PostgreSQL).      |
+| `->translation($value = true)`      | Mark the column as translatable for the translation table (`createWithTranslation`).            |
+| `->translatable($value = true)`     | Alias for `->translation()`.                                                                   |
+
 
 </div>
 
