@@ -310,25 +310,24 @@ When creating the table, you may use any of the schema builder's [column methods
 <a name="creating-translatable-tables"></a>
 ### Creating Translatable Tables
 
-To create a table alongside an automatic translation table, use the `createWithTranslation` method on the `Schema` facade. The method creates both the base table and its corresponding `{singular}_translations` table with foreign key constraints, cascading deletion, a compound unique index on `[{singular}_id, locale]`, and any columns marked with `->translation()`:
+To create a table alongside an automatic translation table, use the `createTranslatable` method on the `Schema` facade. The method creates both the base table and its corresponding `{singular}_translations` table with foreign key constraints, cascading deletion, a compound unique index on `[{singular}_id, locale_id]`, and any columns marked with `->translatable()`:
 
 ```php
 use Heritage\Database\Schema\Blueprint;
 use Heritage\Support\Facades\Schema;
 
-Schema::createWithTranslation('products', function (Blueprint $table) {
+Schema::createTranslatable('products', function (Blueprint $table) {
     $table->id();
     $table->string('slug')->unique();
-    $table->string('name')->translation();
-    $table->text('description')->nullable()->translation();
+    $table->string('name')->translatable();
     $table->timestamps();
 });
 ```
 
-To drop both tables safely in reverse order (translation table first, then main table) during rollback, use `dropIfExistsWithTranslation`:
+To drop both tables safely in reverse order (translation table first, then main table) during rollback, use `dropIfExistsTranslatable`:
 
 ```php
-Schema::dropIfExistsWithTranslation('products');
+Schema::dropIfExistsTranslatable('products');
 ```
 
 
@@ -1287,8 +1286,9 @@ The following table contains all of the available column modifiers. This list do
 | `->virtualAs($expression)`          | Create a virtual generated column (MariaDB / MySQL / SQLite).                                  |
 | `->generatedAs($expression)`        | Create an identity column with specified sequence options (PostgreSQL).                        |
 | `->always()`                        | Defines the precedence of sequence values over input for an identity column (PostgreSQL).      |
-| `->translation($value = true)`      | Mark the column as translatable for the translation table (`createWithTranslation`).            |
-| `->translatable($value = true)`     | Alias for `->translation()`.                                                                   |
+| `->translatable($value = true)`     | Mark the column as translatable for the paired translation table (`createTranslatable`).        |
+| `->translated($value = true)`       | Alias for `->translatable()`.                                                                   |
+| `->translation($value = true)`      | Alias for `->translatable()`.                                                                   |
 
 
 </div>

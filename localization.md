@@ -4,6 +4,13 @@
     - [Publishing the Language Files](#publishing-the-language-files)
     - [Configuring the Locale](#configuring-the-locale)
     - [Pluralization Language](#pluralization-language)
+- [Hybrid Scope-Based Routing](#scope-based-routing)
+    - [Localized Public Routes (`Route::localized`)](#localized-public-routes)
+    - [Session-Driven Control Panel Routes](#session-driven-routes)
+    - [SEO Alternate URLs & Hreflang](#seo-alternates)
+- [Automatic Locale Resolution Pipeline](#locale-resolution-pipeline)
+    - [Resolution Order](#resolution-order)
+    - [Cookie Encryption Exceptions](#cookie-encryption-exceptions)
 - [Defining Translation Strings](#defining-translation-strings)
     - [Using Short Keys](#using-short-keys)
     - [Using Translation Strings as Keys](#using-translation-strings-as-keys)
@@ -118,6 +125,115 @@ public function boot(): void
 
 > [!WARNING]
 > If you customize the pluralizer's language, you should explicitly define your Eloquent model's [table names](/docs/{{version}}/eloquent#table-names).
+
+<a name="scope-based-routing"></a>
+## Hybrid Scope-Based Routing
+
+Modern enterprise applications often require different localization strategies depending on the page type:
+
+1. **Public Website & Auth Pages (SEO-Driven)**: Need language prefixes in URLs (`/ar`, `/en`, `/ar/products`) so search engines can crawl, index, and cache translated pages independently with proper `hreflang` tags.
+2. **Control Panel & Dashboard (Session-Driven)**: Benefit from clean URLs (`/panel`, `/panel/branches`) where language switching happens seamlessly via session and user preferences without altering URLs.
+
+Ugarit supports this hybrid pattern natively.
+
+<a name="localized-public-routes"></a>
+### Localized Public Routes (`Route::localized`)
+
+You can define localized routes using the `Route::localized` method in your `routes/web.php` file:
+
+```php
+use Heritage\Support\Facades\Route;
+
+// SEO & Multi-language Public Routes
+Route::localized(function () {
+    Route::get('/', function () {
+        return view('welcome');
+    })->name('welcome');
+
+    Route::get('/pricing', function () {
+        return view('pricing');
+    })->name('pricing');
+});
+
+// Root URL redirect to active or preferred session locale
+Route::get('/', function () {
+    return redirect('/' . (session('locale') ?? config('locale.default_locale', 'ar')));
+})->name('home');
+```
+
+The `Route::localized` method:
+- Loops through all configured locales in `config('locale.available_locales')`.
+- Applies the locale URL prefix (`/ar`, `/en`).
+- Namespaces route names with the locale (`ar.welcome`, `en.welcome`).
+- Attaches the `\Heritage\Routing\Middleware\SetLocaleFromUrl` middleware to automatically set the application locale and synchronize it to the session.
+
+<a name="session-driven-routes"></a>
+### Session-Driven Control Panel Routes
+
+For administrative or authenticated dashboards, define standard route groups without URL locale prefixes:
+
+```php
+Route::middleware(['auth', 'verified'])->prefix('panel')->name('panel.')->group(function () {
+    Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::resource('branches', BranchController::class);
+});
+```
+
+When users in the panel switch language, the request updates the `session('locale')` or `locale` cookie, and Ugarit's `HandleLocale` middleware immediately renders all UI and Eloquent models in the selected language.
+
+<a name="seo-alternates"></a>
+### SEO Alternate URLs & Hreflang
+
+When requests match a `Route::localized` route, `SetLocaleFromUrl` automatically generates alternate URLs for all supported languages and shares them via the `seo_alternates` view data or Inertia props:
+
+```html
+@if(isset($seo_alternates))
+    @foreach($seo_alternates as $altLocale => $altUrl)
+        <link rel="alternate" hreflang="{{ $altLocale }}" href="{{ $altUrl }}" />
+    @endforeach
+@endif
+```
+
+---
+
+<a name="locale-resolution-pipeline"></a>
+## Automatic Locale Resolution Pipeline
+
+Ugarit uses a multi-tier resolution strategy in its `HandleLocale` middleware to ensure the correct language is chosen across API, Web, Inertia, and Blade requests.
+
+<a name="resolution-order"></a>
+### Resolution Order
+
+Every incoming HTTP request resolves its locale using the following priority order:
+
+1. **Session (`session('locale')`)**: Active user preference stored during login or interactive language switching.
+2. **Cookie (`cookie('locale')`)**: Persistent client-side preference across sessions.
+3. **HTTP Header (`X-Locale` / `Accept-Language`)**: Used by SPAs and mobile apps.
+4. **Application Config (`config('locale.default_locale')`)**: Defaults to `'ar'` or your configured default.
+
+```php
+// Switch locale dynamically anywhere in your controllers
+session(['locale' => 'ar']);
+cookie()->queue('locale', 'ar', 60 * 24 * 365);
+app()->setLocale('ar');
+```
+
+<a name="cookie-encryption-exceptions"></a>
+### Cookie Encryption Exceptions
+
+If your frontend JavaScript switches languages by setting a client-side `locale` cookie (e.g. `document.cookie = "locale=ar; path=/;"`), you should exempt the `locale` cookie from encryption in `bootstrap/app.php`:
+
+```php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->encryptCookies(except: [
+        'appearance',
+        'sidebar_state',
+        'locale',
+    ]);
+})
+```
+
+---
 
 <a name="defining-translation-strings"></a>
 ## Defining Translation Strings
