@@ -42,6 +42,28 @@ Every command also includes a "help" screen which displays and describes the com
 php scribe help migrate
 ```
 
+<a name="modular-scaffolding"></a>
+#### Modular Scaffolding & Architecture Inspection
+
+Ugarit includes built-in commands for scaffolding and inspecting autonomous domain modules and artifacts inside the `artifacts/` root:
+
+```shell
+# Scaffold a new domain artifact package
+php scribe make:artifact Catalog
+
+# List all registered domain artifacts with their stats & capabilities
+php scribe artifact:list
+
+# List all Eloquent models across the application and domain artifacts
+php scribe model:list
+
+# Filter models by specific artifact or translatability
+php scribe model:list --artifact=catalog
+php scribe model:list --translatable
+```
+
+For more details on modular architecture, see the dedicated [Artifact-Driven Architecture Documentation](/docs/{{version}}/artifacts).
+
 <a name="ugarit-sail"></a>
 #### Ugarit Sail
 

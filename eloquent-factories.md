@@ -85,10 +85,82 @@ Via the `fake` helper, factories have access to the [Faker](https://github.com/F
 To create a factory, execute the `make:factory` [Scribe command](/docs/{{version}}/scribe):
 
 ```shell
+# Generate a standard factory
 php scribe make:factory PostFactory
+
+# Generate a factory explicitly bound to a model
+php scribe make:factory PostFactory --model=Post
+
+# Generate a factory inside a modular domain artifact
+php scribe make:factory BranchFactory --model=Branch --artifact=company
 ```
 
-The new factory class will be placed in your `database/factories` directory.
+The new factory class will be placed in your `database/factories` directory (or the target artifact's `database/factories` directory).
+
+<a name="translatable-model-factories"></a>
+### Translatable Model Factories
+
+When your Eloquent models implement multi-language support using the `Heritage\Database\Eloquent\Concerns\Translatable` trait, Ugarit's factory engine **automatically generates localized translations** across all active application locales without requiring separate translation factories or manual loops.
+
+#### Autonomous Multi-Locale Seeding
+
+In your factory's `definition` method, simply define translatable attributes as standard values:
+
+```php
+namespace Ugarit\Artifacts\Company\Database\Factories;
+
+use Heritage\Database\Eloquent\Factories\Factory;
+use Ugarit\Artifacts\Company\Models\Branch;
+
+class BranchFactory extends Factory
+{
+    protected $model = Branch::class;
+
+    public function definition(): array
+    {
+        return [
+            'code' => 'BR-'.$this->faker->unique()->numberBetween(100, 999),
+            'name' => $this->faker->company(),
+            'description' => $this->faker->sentence(),
+            'is_active' => true,
+        ];
+    }
+}
+```
+
+When calling `Branch::factory()->create()`, the factory engine inspects the model's `$translatable` attributes and automatically creates translation records for each active locale (e.g. Arabic with Arabic Faker `ar_SA` and English with English Faker `en_US`).
+
+#### Fluent Translation State Chaining
+
+You may customize or override translations for specific locales using Ugarit's fluent translation methods:
+
+```php
+use Ugarit\Artifacts\Company\Models\Branch;
+
+// Define full multilingual translations explicitly
+$branch = Branch::factory()
+    ->withTranslations([
+        'name' => [
+            'ar' => 'فرع الرياض الرئيسي',
+            'en' => 'Riyadh Main Branch',
+        ],
+        'description' => [
+            'ar' => 'المقر الإقليمي في المملكة العربية السعودية',
+            'en' => 'Regional Headquarters in Saudi Arabia',
+        ],
+    ])
+    ->create();
+
+// Override attributes for a specific locale
+$branch = Branch::factory()
+    ->inLocale('ar', ['name' => 'فرع جدة'])
+    ->create();
+
+// Set a single translation field for a locale
+$branch = Branch::factory()
+    ->withTranslation('ar', 'name', 'فرع الدمام')
+    ->create();
+```
 
 <a name="factory-and-model-discovery-conventions"></a>
 #### Model and Factory Discovery Conventions

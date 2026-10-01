@@ -17,6 +17,7 @@
     - [Subdomain Routing](#route-group-subdomain-routing)
     - [Route Prefixes](#route-group-prefixes)
     - [Route Name Prefixes](#route-group-name-prefixes)
+    - [Localized Routes](#route-group-localized-routes)
 - [Route Model Binding](#route-model-binding)
     - [Implicit Binding](#implicit-binding)
     - [Implicit Enum Binding](#implicit-enum-binding)
@@ -570,6 +571,37 @@ Route::name('admin.')->group(function () {
         // Route assigned name "admin.users"...
     })->name('users');
 });
+```
+
+<a name="route-group-localized-routes"></a>
+### Localized Routes
+
+Ugarit provides first-class support for multi-language, SEO-friendly routing using the `Route::localized` method. This method automatically registers the enclosed routes for every available locale configured in your application (`locale.available_locales`), applying the appropriate URL prefix (`/ar`, `/en`), namespacing the route names (`ar.welcome`, `en.welcome`), and attaching the `SetLocaleFromUrl` middleware:
+
+```php
+use Heritage\Support\Facades\Route;
+
+Route::localized(function () {
+    Route::get('/', function () {
+        return view('welcome');
+    })->name('welcome');
+
+    Route::get('/about', function () {
+        return view('about');
+    })->name('about');
+});
+```
+
+#### Wayfinder & TypeScript Integration
+
+When using Ugarit's Wayfinder route generator (`php scribe wayfinder:generate`), localized routes are neatly organized into locale-specific modules (e.g. `resources/js/routes/ar/index.ts` and `resources/js/routes/en/index.ts`) with zero naming collisions.
+
+You can also define a root redirect route that dynamically routes the user to their preferred or session locale:
+
+```php
+Route::get('/', function () {
+    return redirect('/' . (session('locale') ?? config('locale.default_locale', 'ar')));
+})->name('home');
 ```
 
 <a name="route-model-binding"></a>
