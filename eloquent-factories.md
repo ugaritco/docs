@@ -100,7 +100,7 @@ The new factory class will be placed in your `database/factories` directory (or 
 <a name="translatable-model-factories"></a>
 ### Translatable Model Factories
 
-When your Eloquent models implement multi-language support using the `Heritage\Database\Eloquent\Concerns\Translatable` trait, Ugarit's factory engine **automatically generates localized translations** across all active application locales without requiring separate translation factories or manual loops.
+When your Eloquent models declare [translatable attributes](/docs/{{version}}/eloquent-translations) through the `$translatable` property, Ugarit's factory engine **automatically generates localized translations** for every locale the [locale resolver](/docs/{{version}}/eloquent-translations#locale-resolver) makes available, without separate translation factories or manual loops. Without the i18n artifact these are the keys of `config('locale.available_locales')`; with it, the active locales of its `locales` table, so seed locales before translatable models.
 
 #### Autonomous Multi-Locale Seeding
 
@@ -128,7 +128,7 @@ class BranchFactory extends Factory
 }
 ```
 
-When calling `Branch::factory()->create()`, the factory engine inspects the model's `$translatable` attributes and automatically creates translation records for each active locale (e.g. Arabic with Arabic Faker `ar_SA` and English with English Faker `en_US`).
+When calling `Branch::factory()->create()`, the factory engine inspects the model's `$translatable` attributes and automatically creates a translation record for each available locale (e.g. Arabic with Arabic Faker `ar_SA` and English with English Faker `en_US`). Like any model save, the translation rows get their own timestamps.
 
 #### Fluent Translation State Chaining
 

@@ -3,6 +3,8 @@
 - [Introduction](#introduction)
     - [Publishing the Language Files](#publishing-the-language-files)
     - [Configuring the Locale](#configuring-the-locale)
+    - [The Locale Configuration File](#locale-configuration-file)
+    - [Locale Resolver for Translatable Models](#locale-resolver)
     - [Pluralization Language](#pluralization-language)
 - [Hybrid Scope-Based Routing](#scope-based-routing)
     - [Localized Public Routes (`Route::localized`)](#localized-public-routes)
@@ -93,6 +95,42 @@ if (App::isLocale('en')) {
     // ...
 }
 ```
+
+<a name="locale-configuration-file"></a>
+### The Locale Configuration File
+
+Ugarit applications keep every locale setting in `config/locale.php`:
+
+| Key | Environment variable | Description |
+| :--- | :--- | :--- |
+| `locale` | `APP_LOCALE` | The default application locale |
+| `fallback_locale` | `APP_FALLBACK_LOCALE` | Locale used when a translation string, or a model translation, is missing |
+| `faker_locale` | `APP_FAKER_LOCALE` | Locale used by Faker in factories and seeders |
+| `multilingual` | `APP_MULTILINGUAL` | Whether the application supports several languages. `true` enables locale detection and switching; `false` keeps the application in the default locale |
+| `default_locale` | `APP_DEFAULT_LOCALE` | The locale every request boots with; must be a key of `available_locales` |
+| `available_locales` | — | Registry of supported locales keyed by code (`ar`, `en`), with `name`, `native`, `direction`, `script`, `regional` and `flag` metadata |
+| `resolver` | `APP_LOCALE_RESOLVER` | The [locale resolver](#locale-resolver) used by translatable models (`null` = automatic) |
+
+> [!NOTE]
+> `multilingual` describes the application as a whole. It is unrelated to the `$translatable` property, which declares the translatable attributes of a model or form request.
+
+<a name="locale-resolver"></a>
+### Locale Resolver for Translatable Models
+
+[Translatable Eloquent models](/docs/{{version}}/eloquent-translations) and form requests speak in locale codes (`ar`, `en`). The `Heritage\Contracts\Translation\LocaleResolver` contract decides which codes are accepted and how a code is stored in translation tables. `Heritage\Translation\Locales::resolver()` returns the active resolver:
+
+1. The class named in `config('locale.resolver')`, when set.
+2. Otherwise, the resolver bound by an installed artifact. The i18n artifact binds `Ugarit\Artifacts\I18n\Localization\DatabaseLocaleResolver`: locales come from its `locales` table and translation tables store a `locale_id`.
+3. Otherwise, `Heritage\Translation\ConfigLocaleResolver`: locales are the keys of `available_locales`, the fallback is `fallback_locale`, and translation tables store the code in a `locale` column.
+
+The kernel therefore works without the i18n artifact, and uses it automatically when it is installed. To provide your own strategy, implement the contract and register it:
+
+```php
+// config/locale.php
+'resolver' => App\Localization\TenantLocaleResolver::class,
+```
+
+The resolver's `label()` method also supplies the locale names used in validation messages, for example "الإسم (العربية)". Native names come from `available_locales.*.native`, or from the i18n `languages.native_name` column.
 
 <a name="pluralization-language"></a>
 ### Pluralization Language
