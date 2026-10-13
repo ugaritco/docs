@@ -9,6 +9,8 @@
 - [Tables](#tables)
     - [Creating Tables](#creating-tables)
     - [Creating Translatable Tables](#creating-translatable-tables)
+        - [Columns on Both Tables](#columns-on-both-tables)
+        - [Soft Deleted Translations](#soft-deleted-translations)
     - [Updating Tables](#updating-tables)
     - [Renaming / Dropping Tables](#renaming-and-dropping-tables)
 
@@ -46,13 +48,13 @@ Ugarit will use the name of the migration to attempt to guess the name of the ta
 
 If you would like to specify a custom path for the generated migration, you may use the `--path` option when executing the `make:migration` command. The given path should be relative to your application's base path.
 
-To generate a migration that creates a table with an accompanying translation table, you may provide the `-t` or `--trans` option to the `make:migration` command:
+To generate a migration that creates a [translatable table](#creating-translatable-tables) with its accompanying translation table, provide the `-t` or `--translatable` option to the `make:migration` command. The migration uses `Schema::createTranslatable` and `Schema::dropIfExistsTranslatable`:
 
 ```shell
 php scribe make:migration create_products_table -t
 
 # Or using the full option:
-php scribe make:migration create_products_table --trans
+php scribe make:migration create_products_table --translatable
 ```
 
 > [!NOTE]
@@ -310,7 +312,7 @@ When creating the table, you may use any of the schema builder's [column methods
 <a name="creating-translatable-tables"></a>
 ### Creating Translatable Tables
 
-To create a table alongside an automatic translation table, use the `createTranslatable` method on the `Schema` facade. The method creates both the base table and its corresponding `{singular}_translations` table with foreign key constraints, cascading deletion, a compound unique index on `[{singular}_id, locale_id]`, and any columns marked with `->translatable()`:
+To create a table alongside an automatic translation table, use the `createTranslatable` method on the `Schema` facade. Mark translated columns with `->translatable()`: they are moved out of the base table into its `{singular}_translations` table:
 
 ```php
 use Heritage\Database\Schema\Blueprint;
@@ -319,16 +321,102 @@ use Heritage\Support\Facades\Schema;
 Schema::createTranslatable('products', function (Blueprint $table) {
     $table->id();
     $table->string('slug')->unique();
-    $table->string('name')->translatable();
+    $table->string('name')->translatable()->unique();
+    $table->text('description')->nullable()->translatable();
     $table->timestamps();
 });
 ```
 
-To drop both tables safely in reverse order (translation table first, then main table) during rollback, use `dropIfExistsTranslatable`:
+To mark several columns at once, define them inside a `translatable` group:
+
+```php
+Schema::createTranslatable('products', function (Blueprint $table) {
+    $table->id();
+
+    $table->translatable(function (Blueprint $table) {
+        $table->string('name');
+        $table->text('description')->nullable();
+    });
+});
+```
+
+The translation table (`product_translations`) contains:
+
+- `id` and the parent foreign key (`product_id`) with cascading deletes; the key type follows the parent's primary key (`id`, `uuid`, `ulid` or `increments`);
+- the locale column, chosen by the [locale resolver](/docs/{{version}}/eloquent-translations#locale-resolver): `locale_id` with a foreign key to the resolver's `storageTable()` (the i18n `locales` table) when the i18n artifact is installed, otherwise a `string('locale', 10)` column holding the locale code;
+- every translatable column, copied with its modifiers; a translatable column marked `unique()` becomes unique **per locale** (`unique(locale, name)`), so different records and different locales may share a value;
+- a compound unique index on `[product_id, locale]`, allowing one translation per locale;
+- its own `created_at` / `updated_at` timestamps.
+
+The method's signature is `createTranslatable(string $table, Closure $callback, array $options = [])`. You may customize the translation table through the options; unknown keys throw an `InvalidArgumentException`:
+
+```php
+Schema::createTranslatable('products', function (Blueprint $table) {
+    // ...
+}, [
+    'table' => 'product_texts',          // translation table name
+    'foreign_key' => 'product_id',       // column referencing the base table
+    'locale_column' => 'locale',         // overrides the resolver's column
+    'locale_length' => 10,               // length of a "locale" code column
+    'timestamps' => false,               // no timestamps on the translation table
+    'translation' => function (Blueprint $table) {
+        $table->string('seo_title')->nullable(); // extra translation-table columns
+    },
+]);
+```
+
+<a name="columns-on-both-tables"></a>
+#### Columns on Both Tables
+
+`->translatable()` **moves** a column to the translation table. `->withTranslations()` **keeps** a column on the base table and adds the same column to the translation table too. The copy keeps the column's type and modifiers (`nullable`, `default`, precision...), but not its indexes or position (`unique`, `index`, `primary`, `after`, `first`):
+
+```php
+Schema::createTranslatable('products', function (Blueprint $table) {
+    $table->id();
+    $table->string('name')->translatable()->unique(); // product_translations only
+    $table->softDeletes()->withTranslations();        // products and product_translations
+    $table->timestamps();                             // products only
+});
+```
+
+<a name="soft-deleted-translations"></a>
+#### Soft Deleted Translations
+
+Marking the soft delete column with `withTranslations()` declares that translation rows are soft deleted as well. The translation model then uses `SoftDeletes` (see [Soft Deleting Translations](/docs/{{version}}/eloquent-translations#soft-deleting-translations)). Any of `softDeletes()`, `softDeletesTz()` or `softDeletesDatetime()` works, with the default `deleted_at` or a custom column name.
+
+The translation table's indexes adapt to trashed rows:
+
+| Index | Without `withTranslations()` | With `softDeletes()->withTranslations()` |
+| :--- | :--- | :--- |
+| `[product_id, locale]` | unique | unique, trashed rows included: one row per locale, which is **restored** when the locale is set again |
+| `[locale, name]` (a `unique()` translatable column) | unique | PostgreSQL, SQLite, SQL Server: a partial unique index `where deleted_at is null`, so a trashed value is free again. MySQL, MariaDB: unique (no partial indexes), so a trashed value stays reserved |
+
+`Schema::supportsPartialIndexes()` tells whether the current connection supports partial indexes; `UniqueTranslation` uses it to validate the same way the index behaves.
+
+> [!NOTE]
+> The partial indexes are created by `createTranslatable`. To add soft deletes to an existing translation table, add the column with `Schema::table()` and, on PostgreSQL / SQLite / SQL Server, replace the `unique(locale, column)` index yourself:
+>
+> ```php
+> Schema::table('product_translations', function (Blueprint $table) {
+>     $table->softDeletes();
+>     $table->dropUnique(['locale_id', 'name']);
+> });
+>
+> DB::statement('create unique index product_translations_locale_id_name_unique on product_translations (locale_id, name) where deleted_at is null');
+> ```
+
+To drop both tables in reverse order (translation table first, then the base table), use `dropTranslatable`, or `dropIfExistsTranslatable` during rollbacks. Both accept a custom translation table name as their second argument:
 
 ```php
 Schema::dropIfExistsTranslatable('products');
+
+Schema::dropTranslatable('products', 'product_texts');
 ```
+
+You may generate a translatable migration with `php scribe make:migration create_products_table --translatable` (or `-t`).
+
+> [!NOTE]
+> The locale storage is fixed when the tables are created. To switch existing translation tables between `locale` and `locale_id` (adopting or removing the i18n artifact), use the [`translations:convert-locale-storage`](/docs/{{version}}/eloquent-translations#converting-locale-storage) command.
 
 
 <a name="determining-table-column-existence"></a>
@@ -1026,6 +1114,12 @@ The `softDeletes` method adds a nullable `deleted_at` `TIMESTAMP` equivalent col
 $table->softDeletes('deleted_at', precision: 0);
 ```
 
+`softDeletes`, `softDeletesTz` and `softDeletesDatetime` mark the column as the table's soft delete column. Inside `createTranslatable`, chain [`withTranslations()`](#columns-on-both-tables) to soft delete translation rows as well:
+
+```php
+$table->softDeletes()->withTranslations();
+```
+
 <a name="column-method-string"></a>
 #### `string()` {.collection-method}
 
@@ -1286,9 +1380,8 @@ The following table contains all of the available column modifiers. This list do
 | `->virtualAs($expression)`          | Create a virtual generated column (MariaDB / MySQL / SQLite).                                  |
 | `->generatedAs($expression)`        | Create an identity column with specified sequence options (PostgreSQL).                        |
 | `->always()`                        | Defines the precedence of sequence values over input for an identity column (PostgreSQL).      |
-| `->translatable($value = true)`     | Mark the column as translatable for the paired translation table (`createTranslatable`).        |
-| `->translated($value = true)`       | Alias for `->translatable()`.                                                                   |
-| `->translation($value = true)`      | Alias for `->translatable()`.                                                                   |
+| `->translatable($value = true)`     | Mark the column as translatable: `createTranslatable` stores it in the paired translation table. |
+| `->withTranslations($value = true)` | Keep the column on the base table and add it to the paired translation table too (`createTranslatable`); see [Columns on Both Tables](#columns-on-both-tables). |
 
 
 </div>
