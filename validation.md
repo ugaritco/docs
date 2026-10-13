@@ -372,11 +372,71 @@ When running interactively (`php scribe make:request`), Scribe will prompt you t
 <a name="multilingual-and-translatable-form-requests"></a>
 #### Multilingual & Translatable Form Requests
 
-Ugarit provides effortless, zero-boilerplate validation for multilingual translatable fields. By declaring the `$translatable` property in your FormRequest, Ugarit automatically:
-1. Normalizes flat single-locale inputs (e.g. `['name' => '...']`) and dot-notation submissions (e.g. `translations.ar.name`) into canonical nested `translations` arrays.
-2. Expands natural single-line string validation rules (e.g. `'name' => 'required|string|min:2|max:64'`) into comprehensive multi-locale validation rules (`translations.*.name` and `'translations' => 'required|array|min:1'`).
+Ugarit provides zero-boilerplate validation for [translatable model attributes](/docs/{{version}}/eloquent-translations). Declare the translatable fields in the request's `$translatable` property (the same property name as on the model) and write their rules as if they were plain fields. Ugarit then:
 
-You can scaffold a translatable FormRequest using the `--translatable` flag:
+1. **Normalizes the input** into the canonical payload `translations[{locale}][{field}]`. A flat field (`['name' => '...']`) becomes the entry of the current locale, and FormData / dot-notation keys (`translations.ar.name`) are folded in. The flat field is removed from the input.
+2. **Expands the rules**: `'name' => 'required|string|min:2|max:64'` validates every submitted locale as `translations.*.name`, and adds a rule for `translations` itself: `required|array|min:1` when the field rules contain the `required` rule (matched by name, so `required_if` or `required_with` do not count), otherwise `nullable|array`.
+3. **Rejects unsupported locales**: `translations` may only contain locales accepted by the [locale resolver](/docs/{{version}}/eloquent-translations#locale-resolver) (the `config/locale.php` list, or the active locales of the i18n artifact). Otherwise validation fails with the `validation.translation_locales` message.
+4. **Returns translations only**: `validated()` exposes translatable fields only under `translations`, ready to pass to a model (`Branch::create($request->validated())`).
+
+> [!WARNING]
+> Fields are translatable only when the request declares them in `$translatable`. A request without the property, such as one editing a single translation row with a flat `name`, keeps every field as a plain field.
+
+For example, this request accepts either of the payloads below:
+
+```php
+// Flat field: stored for the current locale
+['slug' => 'north', 'active' => true, 'name' => 'الشمال']
+
+// Canonical payload: several locales at once
+['slug' => 'north', 'active' => true, 'translations' => ['ar' => ['name' => 'الشمال'], 'en' => ['name' => 'North']]]
+```
+
+and in both cases `validated()` returns `['slug' => ..., 'active' => ..., 'translations' => [...]]`.
+
+<a name="required-locales"></a>
+##### Required Locales
+
+By default, a `required` translatable field needs **at least one** locale, whichever it is. Set the `$requiredLocales` property to choose which locales must be filled; the remaining locales stay optional but, when submitted, still follow the field's other rules:
+
+```php
+class StoreBranchRequest extends FormRequest
+{
+    protected array $translatable = ['name'];
+
+    // 'any' (default): at least one locale
+    // 'default':       the application's default locale
+    // 'all':           every available locale
+    // ['ar']:          an explicit list of locale codes
+    protected string|array $requiredLocales = ['ar'];
+
+    public function rules(): array
+    {
+        return [
+            'name' => 'required|string|max:64',
+        ];
+    }
+}
+```
+
+With `['ar']`, the rules become `translations.ar.name => required|string|max:64` and `translations.*.name => nullable|string|max:64`. `$requiredLocales` only applies to fields whose rules contain `required`.
+
+<a name="deleting-translations-from-requests"></a>
+##### Partial Updates & Deleting a Locale
+
+Models [merge](/docs/{{version}}/eloquent-translations#merging-and-deleting-locales) the submitted translations: locales absent from the payload are kept, so a request may send only the locales it edits. To delete a locale, send it as `null` or as an empty value (`translations[en]=`, which `ConvertEmptyStringsToNull` turns into `null`). The request skips validation for that locale and returns it as `null` from `validated()`:
+
+```php
+// Input
+['translations' => ['ar' => ['name' => 'الشمال'], 'en' => null]]
+
+// validated()
+['translations' => ['ar' => ['name' => 'الشمال'], 'en' => null]]
+```
+
+Deleting a locale listed in `$requiredLocales` fails validation, because the required locale is then missing.
+
+You can scaffold a translatable FormRequest using the `--translatable` (or `-t`) flag:
 
 ```shell
 php scribe make:request StoreBranchRequest --artifact=company --service --translatable --fields=name,description
@@ -423,6 +483,19 @@ class StoreBranchRequest extends FormRequest
     }
 }
 ```
+
+<a name="translatable-attribute-labels"></a>
+##### Attribute Labels From Entity Language Files
+
+Every FormRequest names fields in its error messages using the entity's language file, so users read "الإسم (العربية)" instead of `translations.ar.name`. The lang prefix is derived from the request's namespace: `Ugarit\Artifacts\Company\Http\Requests\Branch\...` uses `company::branch.attributes`. For each rule key:
+
+| Rule key | Label key | Example label |
+| :--- | :--- | :--- |
+| `slug` | `company::branch.attributes.slug.label` | الاسم اللطيف |
+| `translations.*.name` / `translations.ar.name` | `company::branch.attributes.name.label` + the locale's name from the resolver | الإسم (العربية) |
+| `slug_confirmation` | `company::branch.attributes.slug.confirmation.label`, falling back to `...slug.label` | تأكيد الاسم اللطيف |
+
+Labels are used only when the key exists in the language file. Values returned by your own `attributes()` method take precedence. Set a `protected ?string $attributeLangPrefix` property to use another prefix, or `null` to disable automatic labels.
 
 > [!NOTE]
 > You may type-hint any dependencies you require within the `rules` method's signature. They will automatically be resolved via the Ugarit [service container](/docs/{{version}}/container).
