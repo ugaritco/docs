@@ -21,6 +21,7 @@
     - [Via the Gate Facade](#via-the-gate-facade)
     - [Via Middleware](#via-middleware)
     - [Via Blade Templates](#via-blade-templates)
+    - [Via Capabilities and Features](#via-capabilities-and-features)
     - [Supplying Additional Context](#supplying-additional-context)
 - [Authorization & Inertia](#authorization-and-inertia)
 
@@ -312,7 +313,7 @@ php scribe make:policy PostPolicy --model=Post
 <a name="policy-discovery"></a>
 #### Policy Discovery
 
-By default, Ugarit automatically discover policies as long as the model and policy follow standard Ugarit naming conventions. Specifically, the policies must be in a `Policies` directory at or above the directory that contains your models. So, for example, the models may be placed in the `app/Models` directory while the policies may be placed in the `app/Policies` directory. In this situation, Ugarit will check for policies in `app/Models/Policies` then `app/Policies`. In addition, the policy name must match the model name and have a `Policy` suffix. So, a `User` model would correspond to a `UserPolicy` policy class.
+By default, Ugarit automatically discover policies as long as the model and policy follow standard Ugarit naming conventions. Specifically, the policies must be in a `Policies` directory at or above the directory that contains your models. So, for example, the models may be placed in the `app/Models` directory while the policies may be placed in the `app/Policies` directory. In this situation, Ugarit will check for policies in `app/Models/Policies` then `app/Policies`. In addition, the policy name must match the model name and have a `Policy` suffix. So, a `User` model would correspond to a `UserPolicy` policy class. The policy may also sit in a folder named after the model, the way repositories do: `Policies/Branch/BranchPolicy` for a `Branch` model.
 
 If you would like to define your own policy discovery logic, you may register a custom policy discovery callback using the `Gate::guessPolicyNamesUsing` method. Typically, this method should be called from the `boot` method of your application's `AppServiceProvider`:
 
@@ -791,6 +792,23 @@ Like most of the other authorization methods, you may pass a class name to the `
     <!-- The current user can't create posts... -->
 @endcannot
 ```
+
+<a name="via-capabilities-and-features"></a>
+### Via Capabilities and Features
+
+A Capability or Feature may declare the ability it requires with the `#[Authorize]` attribute; the controller running it checks the policy first and throws an `AuthorizationException` when the ability is denied:
+
+```php
+use Heritage\Capabilities\Attributes\Authorize;
+
+#[Authorize('update', Post::class)]
+class UpdatePostCapability extends Capability
+{
+    // ...
+}
+```
+
+A form request declaring `#[ForAction(UpdatePostCapability::class)]` checks that ability before validating, so a denied user receives `403` rather than validation errors. See [Capabilities: Authorization](/docs/{{version}}/capabilities#authorization).
 
 <a name="supplying-additional-context"></a>
 ### Supplying Additional Context
