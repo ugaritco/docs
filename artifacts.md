@@ -71,7 +71,7 @@ artifacts/catalog/
     ├── Parcels/                # Strongly-typed data envelopes
     ├── Policies/               # Authorization policies
     ├── Providers/              # CatalogServiceProvider
-    ├── Repositories/           # Data access boundary mapping Models to Parcels
+    ├── Repositories/           # Data access: take Parcels, return Models
     └── Rules/                  # Custom domain validation rules
 ```
 
@@ -89,18 +89,28 @@ php scribe make:parcel ProductData --artifact=Catalog
 ```
 
 ### Capabilities
-Generate atomic, single-responsibility domain capability executors:
+Generate atomic, single-responsibility domain capability executors, optionally typed to their Parcel, with an injected repository and their Result/Outcome:
 
 ```bash
 php scribe make:capability PublishProduct --artifact=Catalog
+php scribe make:capability PublishProduct --artifact=Catalog --parcel=PublishProductParcel --repository=ProductRepositoryInterface --result=PublishProductResult
 ```
 
 ### Features (Workflow Orchestrators)
 Generate feature workflow orchestrators that coordinate across multiple capabilities:
 
 ```bash
-php scribe make:feature CheckoutWorkflow --artifact=Catalog
+php scribe make:feature CheckoutWorkflow --artifact=Catalog --parcel=CheckoutParcel
 ```
+
+### Result Enums
+Generate a Result enum whose feedback is resolved by convention from its `FEEDBACK` key:
+
+```bash
+php scribe make:result PublishProduct --artifact=Catalog --feedback=published
+```
+
+See [Capabilities](/docs/{{version}}/capabilities) for the shape of these classes, failure handling and the feedback convention, and [Features](/docs/{{version}}/features) for flows and transactions.
 
 ### Form Requests
 Generate layer-aware, translatable FormRequests for domain artifacts:
@@ -126,17 +136,21 @@ Generating models directly within an artifact:
 php scribe make:model Product --artifact=Catalog --migration --factory --seed
 ```
 
-### Localized Models (`--translation`)
-To automatically scaffold dual database tables for localized models:
+### Translatable Models (`--translatable`)
+To scaffold a translatable model and its dual database tables:
 
 ```bash
-php scribe make:model Category --artifact=Catalog --translation
+php scribe make:model Category --artifact=Catalog --translatable --migration
+
+# Short flag
+php scribe make:model Category --artifact=Catalog -t -m
 ```
 
 This generates:
-- `Category.php` using the `Heritage\Database\Eloquent\Concerns\HasTranslation` trait.
-- `CategoryTranslation.php` extending `Heritage\Database\Eloquent\ModelTranslation`.
-- Dual migration creating `categories` and `category_translations` tables with cascade foreign key relations.
+- `Category.php` declaring `$translatable` and `$translatableFallback` (translation support is built into the base `Model`; no trait is needed).
+- A migration using `Schema::createTranslatable`, creating `categories` and `category_translations` with a cascading foreign key, a locale column chosen by the locale resolver, and the translation table's own timestamps.
+
+The translation model is generated at runtime. Add `--with-translation-file` to also write a physical `CategoryTranslation.php` extending `Heritage\Database\Eloquent\ModelTranslation`. See [Eloquent Model Translations](/docs/{{version}}/eloquent-translations).
 
 ---
 
