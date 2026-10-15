@@ -22,6 +22,7 @@
 - [CLI Scaffolding](#cli-scaffolding)
     - [Generating a Slice](#generating-a-slice)
     - [Generating a Model With Its Slice](#generating-a-model-with-its-slice)
+    - [Adding Fields to a Model](#adding-fields-to-a-model)
     - [Generating the Parts](#generating-the-parts)
 
 <a name="introduction"></a>
@@ -506,6 +507,29 @@ php scribe make:model Department --artifact=company --all \
 | `string`, `text`, `integer`, `bigInteger`, `boolean`, `decimal`, `float`, `json`, `date`, `dateTime`, `foreignId` | `nullable`, `unique`, `index`, `translatable` |
 
 The fields become the model's `$fillable`, `$casts` and `$translatable` (a translatable field makes the model translatable; a translatable `string` falls back to its `slug`), a `belongsTo()` relation for each foreign key with its `hasMany()` inverse on the related model when it exists (`Author::books()` for a book's `author_id`), the migration's columns (`foreignId` is `constrained()`) and the factory's state; the slice is then read from that model. Without `--fields`, the command asks for the fields one by one (type and modifiers), or uses a name, a unique slug and an active flag when none is given or the command is not interactive.
+
+<a name="adding-fields-to-a-model"></a>
+### Adding Fields to a Model
+
+`make:field` adds fields to an existing model and to every file of its slice, with the same `name:type[:modifier...]` syntax:
+
+```bash
+php scribe make:field Department --artifact=company \
+    branch_id:foreignId description:text:nullable:translatable code:string:unique featured:boolean
+```
+
+| File | What is added |
+| --- | --- |
+| Model | `$fillable` (or `$translatable`), `$casts`, a `belongsTo()` relation for a foreign key and its `hasMany()` inverse on the related model |
+| Migration | `add_{field}_to_{table}_table` (`add_fields_to_…` for more than two): the columns on the table, a translatable field on its translation table, and a `down()` dropping them |
+| Factory | The field's state, `Related::factory()` for a foreign key |
+| Requests | The rule in `Store…Request` and `Update…Request`, and `$translatable` for a translatable field |
+| Parcels | A `Save…Parcel` property; in `Index…Parcel` a filter (boolean, foreign key) or a searchable and sortable column (string, text) |
+| Resource | The attribute |
+| Translation slice | For a translatable field, the `Save…TranslationParcel` property, the rule in `Store…TranslationRequest` and `Update…TranslationRequest`, and the `…TranslationResource` attribute |
+| Lang | The attribute's label and placeholder, in every locale file of the model |
+
+Each file keeps its formatting and imports; a file that does not exist (a model without a slice) or a list that was rewritten by hand is reported and left to be edited. A field the model already has, or a translatable field on a model without a translation table, stops the command before anything is written. The new columns are nullable on the table (a boolean defaults to `false`, a number to `0`) so the existing rows remain valid, while the request requires them unless they are `nullable`. Use `--without-migration` to edit the files only.
 
 <a name="generating-the-parts"></a>
 ### Generating the Parts
