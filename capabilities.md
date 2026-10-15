@@ -522,7 +522,7 @@ php scribe make:field Department --artifact=company \
 | File | What is added |
 | --- | --- |
 | Model | `$fillable` (or `$translatable`), `$casts`, a `belongsTo()` relation for a foreign key and its `hasMany()` inverse on the related model |
-| Migration | `add_{field}_to_{table}_table` (`add_fields_to_…` for more than two): the columns on the table, a translatable field on its translation table, and a `down()` dropping them |
+| Migration | `add_{field}_to_{table}_table` (`add_fields_to_…` for more than two): the commented columns on the table (`Schema::tableTranslatable()` with a translatable field, which goes to the translation table), and a `down()` dropping them |
 | Factory | The field's state, `Related::factory()` for a foreign key |
 | Requests | The rule in `Store…Request` and `Update…Request`, and `$translatable` for a translatable field |
 | Parcels | A `Save…Parcel` property; in `Index…Parcel` a filter (boolean, foreign key) or a searchable and sortable column (string, text) |

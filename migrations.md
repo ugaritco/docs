@@ -63,7 +63,15 @@ The `--fields` option writes the created table's columns, as `name:type[:modifie
 php scribe make:migration create_products_table --fields="category_id:foreignId,sku:string:unique,name:string:translatable,price:decimal"
 ```
 
-Without `--fields`, a translatable table gets a unique `slug` and a translatable `name`.
+Without `--fields`, a translatable table gets a unique `slug` and a translatable `name`. Every generated column has a comment above it describing its type and modifiers, and is separated from the next one by an empty line:
+
+```php
+// Price (decimal amount)
+$table->decimal('price', 10, 2);
+
+// Published at (date, optional)
+$table->date('published_at')->nullable();
+```
 
 > [!NOTE]
 > Migration stubs may be customized using [stub publishing](/docs/{{version}}/scribe#stub-customization).
@@ -422,6 +430,30 @@ Schema::dropTranslatable('products', 'product_texts');
 ```
 
 You may generate a translatable migration with `php scribe make:migration create_products_table --translatable` (or `-t`).
+
+<a name="updating-translatable-tables"></a>
+### Updating Translatable Tables
+
+To alter a translatable table and its translation table together, use `tableTranslatable`, which works like `createTranslatable` on existing tables: a column marked `->translatable()` is added to the translation table (a `unique()` one unique per locale), a `->withTranslations()` column to both tables, and the other columns to the base table:
+
+```php
+Schema::tableTranslatable('products', function (Blueprint $table) {
+    $table->string('color')->nullable();                              // products
+    $table->string('subtitle')->nullable()->unique()->translatable(); // product_translations
+});
+```
+
+`dropColumn` drops every column from the table that holds it, the translation table's indexes on a dropped column (such as its per-locale unique index) first, so the migration's `down()` needs no `->translatable()`:
+
+```php
+Schema::tableTranslatable('products', function (Blueprint $table) {
+    $table->dropColumn(['subtitle', 'color']);
+});
+```
+
+When the translation table has a `deleted_at` column, a new `unique()` translatable column gets a partial unique index (`where deleted_at is null`) where the database supports it, as with [soft deleted translations](#soft-deleted-translations). The method's signature is `tableTranslatable(string $table, Closure $callback, array $options = [])`; the accepted options are `table`, `locale_column` and `translation` (a callback receiving the translation table's blueprint), and other keys throw an `InvalidArgumentException`.
+
+`make:field` writes this method when one of the added fields is translatable.
 
 > [!NOTE]
 > The locale storage is fixed when the tables are created. To switch existing translation tables between `locale` and `locale_id` (adopting or removing the i18n artifact), use the [`translations:convert-locale-storage`](/docs/{{version}}/eloquent-translations#converting-locale-storage) command.

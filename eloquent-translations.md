@@ -763,6 +763,7 @@ php scribe make:request StoreBranchRequest --artifact=company --translatable --f
 | Method | Description |
 | :--- | :--- |
 | `Schema::createTranslatable($table, Closure $callback, array $options = [])` | Create the primary and translation tables |
+| `Schema::tableTranslatable($table, Closure $callback, array $options = [])` | Alter the primary and translation tables (see [Updating Translatable Tables](/docs/{{version}}/migrations#updating-translatable-tables)) |
 | `Schema::dropTranslatable($table, ?string $translationTable = null)` | Drop both tables |
 | `Schema::dropIfExistsTranslatable($table, ?string $translationTable = null)` | Drop both tables if they exist |
 | `$column->translatable()` / `$column->isTranslatable()` | Mark / check a translatable column (moved to the translation table) |
