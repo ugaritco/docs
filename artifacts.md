@@ -63,9 +63,12 @@ artifacts/catalog/
 ├── routes/                     # Domain web and API routes
 └── src/
     ├── Capabilities/           # Atomic domain operation executors
+    ├── Contracts/Repositories/ # Repository contracts, bound to Repositories/ by convention
+    ├── Enums/                  # Results of the capabilities and features
     ├── Features/               # Multi-step workflow orchestrators
     ├── Http/Controllers/       # Thin controllers executing Features/Capabilities
     ├── Http/Requests/          # FormRequests organized by layer (Capabilities / Features)
+    ├── Http/Resources/         # JSON resources of the models
     ├── Models/                 # Eloquent entities & localized tables
     ├── Outcomes/               # Standardized operation outcome envelopes
     ├── Parcels/                # Strongly-typed data envelopes
@@ -75,11 +78,22 @@ artifacts/catalog/
     └── Rules/                  # Custom domain validation rules
 ```
 
+The service provider loads the artifact's migrations, its translations under the `catalog::` namespace from `lang/`, and `routes/web.php` when it exists.
+
 ---
 
 ## 3. Granular Generator Commands
 
-All granular generator commands support the `--artifact` flag:
+All granular generator commands support the `--artifact` flag.
+
+### A Model's Capabilities Slice
+Generate a model's repository, policy, results, parcels, outcome, capabilities, form requests, resource, controller and lang file in one command; the fields and rules are read from the model's `$fillable`, `$casts` and translatable attributes:
+
+```bash
+php scribe make:capabilities Product --artifact=Catalog
+```
+
+See [Capabilities: Generating a Slice](/docs/{{version}}/capabilities#generating-a-slice) for the generated classes and the generator of each part.
 
 ### Parcels
 Generate strongly-typed, immutable Parcels:
@@ -121,6 +135,9 @@ php scribe make:request StoreProductRequest --artifact=Catalog --capability --tr
 
 # Generate a Feature-layer orchestration FormRequest
 php scribe make:request CheckoutRequest --artifact=Catalog --feature
+
+# Rules from the model's columns for an operation (store, update, destroy), authorizing its action
+php scribe make:request StoreProductRequest --artifact=Catalog --capability --model=Product --operation=store --action=Capabilities/Product/SaveProductCapability
 
 # Interactive mode (prompts for Artifact, Layer, and Translatable capabilities)
 php scribe make:request StoreProductRequest
