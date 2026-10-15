@@ -47,8 +47,11 @@ php scribe model:list --translatable
 
 Options available for artifact scaffolding:
 - `--description="Description"`: Provide a human-readable description for the artifact manifest.
-- `--minimal`: Only scaffold the core files (`art.php`, `composer.json`, `ServiceProvider`) without subdirectories.
+- `--minimal`: Only scaffold the core files (`art.php`, `composer.json`, `ServiceProvider`) without subdirectories nor summary.
+- `--panel`: Also create its panel module on the frontend (`make:panel`): layout, navigation, sidebar item and summary page. When it is not given, the interactive prompt asks.
 - `--force`: Overwrite the artifact files even if the artifact already exists.
+
+Unless `--minimal`, the artifact gets its [module summary](/docs/{{version}}/capabilities#the-module-summary) by `make:summary`: `ShowModuleCapability`, its result, `ModuleController` and the `{artifact}.module.show` route in `routes/web.php`.
 
 This creates the following structure in `artifacts/catalog/`:
 ```text
