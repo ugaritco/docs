@@ -51,6 +51,8 @@ Options available for artifact scaffolding:
 - `--panel`: Also create its panel module on the frontend (`make:panel`): layout, navigation, sidebar item and summary page. When it is not given, the interactive prompt asks.
 - `--force`: Overwrite the artifact files even if the artifact already exists.
 
+An artifact of the official catalog (`i18n`, `geography`, `identity`, `catalog`, ...) gets the catalog's title as the manifest's `$name`, and its description and `$capabilities`; any other artifact is named `{Studly} Domain` with no capabilities to start with.
+
 Unless `--minimal`, the artifact gets its [module summary](/docs/{{version}}/capabilities#the-module-summary) by `make:summary`: `ShowModuleCapability`, its result, `ModuleController` and the `{artifact}.module.show` route in `routes/web.php`.
 
 This creates the following structure in `artifacts/catalog/`:
