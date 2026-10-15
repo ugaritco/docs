@@ -97,6 +97,8 @@ php scribe make:factory BranchFactory --model=Branch --artifact=company
 
 The new factory class will be placed in your `database/factories` directory (or the target artifact's `database/factories` directory).
 
+A factory finds its model from its own name: `Database\Factories\PostFactory` belongs to `App\Models\Post`, and an artifact's `Ugarit\Artifacts\Company\Database\Factories\BranchFactory` to `Ugarit\Artifacts\Company\Models\Branch`. The generated factory declares the `$model` property only when `--model` names another model.
+
 <a name="translatable-model-factories"></a>
 ### Translatable Model Factories
 
@@ -112,10 +114,11 @@ namespace Ugarit\Artifacts\Company\Database\Factories;
 use Heritage\Database\Eloquent\Factories\Factory;
 use Ugarit\Artifacts\Company\Models\Branch;
 
+/**
+ * @extends Factory<Branch>
+ */
 class BranchFactory extends Factory
 {
-    protected $model = Branch::class;
-
     public function definition(): array
     {
         return [
