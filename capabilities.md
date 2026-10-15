@@ -671,7 +671,7 @@ A translatable model gets the forms and tab of the `Branch` pages:
 | File | Content |
 | --- | --- |
 | `pages/{model}/partials/store/Store.vue`, `update/Update.vue` | The capability forms: the model's own columns alone, posted to `{model}.store` / `{model}.update` |
-| `pages/{model}/partials/store/Dialog.vue`, `update/Dialog.vue` | The capability form, its own columns alone; the create and edit pages show the feature forms, with the translations |
+| `pages/{model}/partials/store/Dialog.vue`, `update/Dialog.vue` | The capability form, its own columns alone, with `in-dialog`, which adds the shortcut to the create or edit page; the create and edit pages show the feature forms, with the translations and without the shortcut |
 | `pages/{model}/partials/store/feature/Store.vue`, `update/feature/Update.vue` | The feature forms, posted to `{model}-feature.store` / `{model}-feature.update`: its plain fields, then a section of translated fields per locale, sent as `translations.{locale}.{field}`: the current locale's section is always shown, the others are added and removed from a menu. In the update form, a stored locale whose section is removed is sent empty, which deletes it. A unique `slug` is generated from the current locale's name until it is typed |
 | `types/{model}/{model}-translation.d.ts` | The zod schema of the translation resource |
 | `pages/{model}/partials/translation/` | The Translations tab of the show page: an alert when the record has no translation or misses some locales (offering to add them), and the table of its translations with a show, update and delete dialog per locale and a create dialog, posting to the `{model}-translation` routes |
