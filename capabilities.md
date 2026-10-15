@@ -136,13 +136,15 @@ The controller checks the ability before running the action ([Running Actions Fr
 class SaveBranchFeature extends Feature { /* ... */ }
 
 // Policies\Branch\BranchPolicy
-public function save(User $user, ?Branch $branch = null): bool
+public function save(Actor $actor, ?Branch $branch = null): bool
 {
-    return $branch === null ? $this->create($user) : $this->update($user, $branch);
+    return $branch === null ? $this->create($actor) : $this->update($actor, $branch);
 }
 ```
 
-When the policy method requires the model (a required, non-nullable second parameter, as in `view(User $user, Branch $branch)`), the Parcel must carry it: a Parcel holding only an id throws a `LogicException` naming the action and the model, instead of silently falling back to a class-level check. Attach the model with `fromModel()` or `setModel()`; route model binding does this for you in the controller.
+A policy decides for an `Heritage\Contracts\Auth\Actor` (authenticatable and authorizable, implemented by `Heritage\Foundation\Auth\User`) rather than a concrete user model, so an artifact's policies do not depend on the identity artifact. See [Policies and Actors](/docs/{{version}}/authorization#policy-actors).
+
+When the policy method requires the model (a required, non-nullable second parameter, as in `view(Actor $actor, Branch $branch)`), the Parcel must carry it: a Parcel holding only an id throws a `LogicException` naming the action and the model, instead of silently falling back to a class-level check. Attach the model with `fromModel()` or `setModel()`; route model binding does this for you in the controller.
 
 Without a model class, the ability is checked as a plain gate (`#[Authorize('manage-settings')]`). An action without the attribute is not checked.
 

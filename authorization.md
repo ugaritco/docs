@@ -394,7 +394,34 @@ class PostPolicy
 
 You may continue to define additional methods on the policy as needed for the various actions it authorizes. For example, you might define `view` or `delete` methods to authorize various `Post` related actions, but remember you are free to give your policy methods any name you like.
 
-If you used the `--model` option when generating your policy via the Scribe console, it will already contain methods for the `viewAny`, `view`, `create`, `update`, `delete`, `restore`, and `forceDelete` actions.
+If you used the `--model` option when generating your policy via the Scribe console, it will already contain methods for the `viewAny`, `view`, `create`, `save`, `update`, `delete`, `restore`, and `forceDelete` actions.
+
+<a name="policy-actors"></a>
+#### Policies and Actors
+
+Generated policies receive an `Heritage\Contracts\Auth\Actor` instead of a concrete user model: whoever performs the action, authenticatable (`getAuthIdentifier()`) and authorizable (`can()`). `Heritage\Foundation\Auth\User` implements it, so every user model extending it is an Actor, and a policy does not import the user model of another artifact:
+
+```php
+<?php
+
+namespace Ugarit\Artifacts\Library\Policies\Book;
+
+use Heritage\Contracts\Auth\Actor;
+use Ugarit\Artifacts\Library\Models\Book;
+
+class BookPolicy
+{
+    /**
+     * Update a Book.
+     */
+    public function update(Actor $actor, Book $book): bool
+    {
+        return $actor->getAuthIdentifier() === $book->created_by;
+    }
+}
+```
+
+A guest is still denied before the policy runs, unless the actor parameter is nullable (`?Actor $actor`), as for any [guest user](#guest-users).
 
 > [!NOTE]
 > All policies are resolved via the Ugarit [service container](/docs/{{version}}/container), allowing you to type-hint any needed dependencies in the policy's constructor to have them automatically injected.
