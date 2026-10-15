@@ -567,7 +567,7 @@ Fields are translatable only when the request declares them. See [Validation](/d
 <a name="translation-repositories"></a>
 ## Translation Repositories & Capabilities
 
-In the Capability / Feature architecture, a translatable model and its translation model each have their own capabilities: `SaveBranchCapability` saves the branch's columns, while `SaveBranchTranslationCapability` and `DestroyBranchTranslationCapability` save or delete one locale. A Feature (`SaveBranchFeature`) runs them for each locale of the `translations` payload as one [flow](/docs/{{version}}/features#flows), so a failed translation rolls the whole save back.
+In the Capability / Feature architecture, a translatable model and its translation model each have their own capabilities: `SaveBranchCapability` saves the branch's columns, while `SaveBranchTranslationCapability` and `DestroyBranchTranslationCapability` save or delete one locale. A Feature (`SaveBranchFeature`) runs them for each locale of the `translations` payload as one [flow](/docs/{{version}}/features#flows), so a failed translation rolls the whole save back. `make:capabilities` generates this Feature layer for every translatable model (see [The Feature Layer](/docs/{{version}}/capabilities#the-feature-layer)).
 
 The translation capabilities use a repository extending `Heritage\Repositories\TranslationRepository`, which speaks locale codes and converts them through the [locale resolver](#locale-resolver):
 

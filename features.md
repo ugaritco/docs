@@ -250,4 +250,6 @@ Available: `assertSucceeded()`, `assertFailed()`, `assertSkipped($name, ?SkipRea
 php scribe make:feature Branch/SaveBranch --artifact=company --parcel=Branch/Features/SaveBranchParcel --result=Branch/Features/SaveBranchResult --outcome=Branch/BranchOutcome --authorize=save --model=Branch
 ```
 
+For a translatable model, `make:capabilities` generates its `Save{Model}Feature` with its parcel, result, requests, controller and route (see [The Feature Layer](/docs/{{version}}/capabilities#the-feature-layer)).
+
 `--artifact`, the companion class paths and `--outcome` follow the same rules as the other generators; `--authorize` with `--model` adds the [`#[Authorize]`](/docs/{{version}}/capabilities#authorization) attribute. See [CLI Scaffolding](/docs/{{version}}/capabilities#cli-scaffolding).
