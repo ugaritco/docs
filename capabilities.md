@@ -24,6 +24,7 @@
     - [Generating a Model With Its Slice](#generating-a-model-with-its-slice)
     - [Adding Fields to a Model](#adding-fields-to-a-model)
     - [Generating the Parts](#generating-the-parts)
+    - [Generating the UI](#generating-the-ui)
 
 <a name="introduction"></a>
 ## Introduction
@@ -587,3 +588,104 @@ php scribe make:parcel Branch/Capabilities/ShowBranchParcel --artifact=company
 ```
 
 The generated repository property is named after the contract (`BranchRepositoryInterface` becomes `$branches`). Results whose name contains `Translation` get a `translation.` feedback group. With `--outcome` the generated code returns `BranchOutcome::fromResult(...)` (pass the artifact Outcome); without `--result`/`--outcome` it returns `Outcome::success()` / `Outcome::failure()`. Pass the data as the second argument of `fromResult()`.
+
+<a name="generating-the-ui"></a>
+### Generating the UI
+
+The frontend has its own commands, named as the backend ones are; the backend commands above write nothing for it. Once an artifact and its models exist, `make:panel` writes the artifact's panel module in `resources/js/apps/panel/modules/{artifact}`, and with `--all` the pages of its models, from what the artifact declares:
+
+```bash
+# Backend
+php scribe make:artifact library --description="Books, their authors and genres"
+php scribe make:model Author --artifact=library --all --fields="name:string,slug:string:unique,active:boolean"
+php scribe make:model Book --artifact=library --all --fields="author_id:foreignId,title:string,price:decimal,active:boolean"
+
+# Frontend: the module, then every model with capabilities, in the order their tables were created
+php scribe make:panel library --icon=Library --all --icons=Author:UserPen,Book:BookOpen
+```
+
+The parts can be run alone:
+
+```bash
+php scribe make:panel library --icon=Library                     # the module
+php scribe make:pages Book --artifact=library --icon=BookOpen    # a model's pages (creates the module when needed)
+php scribe make:component BookCard --artifact=library --model=Book --type=summary   # one component
+php scribe lang:sync                                             # the translations only
+```
+
+The files are written in the frontend stack of the application: `--stack=` names it, else the `ui.stack` config, else it is detected from the dependencies of `package.json` (`vue` or `@inertiajs/vue3` for Vue, the only stack supported for now). Each stack has its stubs under `stubs/{stack}`, and a stub copied to the application's `stubs/ui/{stack}` folder, under the same path, replaces the framework's.
+
+`make:panel {artifact} {--icon=} {--group=master_data} {--all} {--icons=Model:Icon,…}` creates the module and registers it:
+
+| File | Content |
+| --- | --- |
+| `navigation.ts` | The module's inner sidebar: its summary, then its entities (`{artifact}Entities()`, filled by `make:pages`) |
+| `layouts/{Artifact}Layout.vue`, `layouts/index.ts` | The module layout with its collapsible inner sidebar |
+| `pages/module/Show.vue` | The summary page, a card per entity |
+| `artifacts/{artifact}/routes/web.php` | The summary page's route, first in the artifact's group: `Route::inertia('/', '{artifact}::module/Show')->name('{artifact}.module.show')` (in a new `panel/artifact/{artifact}` group when the file does not exist) |
+| `artifacts/{artifact}/lang/en/module.php` | The module's name and the artifact's description |
+| `resources/js/app.ts` | The module's pages in the Inertia pages glob |
+| `vite.config.ts`, `tsconfig.json` | The `@module/{artifact}` alias, and the artifact's `lang` folder in `additionalLangPaths` |
+| `apps/panel/composables/usePanelModuleNav.ts` | The module's item in the `--group` of the main sidebar, with its icon |
+
+`make:pages {model} --artifact= {--icon=} {--only=} {--except=}` creates the pages and components of a model, as the company module's are written, and adds the model to the module's inner sidebar:
+
+| File | Content |
+| --- | --- |
+| `types/{model}/{model}.d.ts` | The zod schema of the model's resource, its collection and its table column metadata |
+| `pages/{model}/{Index,Create,Edit,Show}.vue` | The pages the controller renders (`{artifact}::{model}/Index`, …) |
+| `layouts/{Model}Layout.vue` | The show page shell: header with the update and delete dialogs, and a tab per section |
+| `pages/{model}/partials/` | The table and its columns, the create, update, delete and show dialogs with their forms and zod schemas, the summary, and `index.ts` exporting them |
+| `pages/{model}/partials/relations/` | A select per foreign key (`AuthorSelect.vue`) and the loader of its options (`useAuthorOptions.ts`) |
+
+The fields are those of the model's store request, in its order: the rules give whether a field is required and its bounds (`min`, `max`), the artifact's migrations give its type (else the model's casts, else the rules), a field ending in `_id` whose model exists in the artifact is a foreign key, and json fields are left out of the forms. A record is named by its `name`, `title`, `slug` or first string field; deleting it asks for its slug (else that name, else its id).
+
+A translatable model gets the forms and tab of the `Branch` pages:
+
+| File | Content |
+| --- | --- |
+| `pages/{model}/partials/store/Store.vue`, `update/Update.vue` | Its plain fields, then a section of translated fields per locale, sent as `translations.{locale}.{field}`: the current locale's section is always shown, the others are added and removed from a menu. In the update form, a stored locale whose section is removed is sent empty, which deletes it. A unique `slug` is generated from the current locale's name until it is typed |
+| `types/{model}/{model}-translation.d.ts` | The zod schema of the translation resource |
+| `pages/{model}/partials/translation/` | The Translations tab of the show page: an alert when the record has no translation or misses some locales (offering to add them), and the table of its translations with a show, update and delete dialog per locale and a create dialog, posting to the `{model}-translation` routes |
+
+The pages offer six operations, all generated by default; `--only` and `--except` take a comma separated list of them:
+
+| Operation | Files |
+| --- | --- |
+| `index` | The index page, the table and its columns, and the model's item in the module sidebar |
+| `show` | The show page and its layout, the quick view dialog and the summary |
+| `create` | The create page, the create form and its dialog |
+| `edit` | The edit page, the update form and its dialog |
+| `destroy` | The delete confirmation form and its dialog |
+| `translations` | The Translations tab of a translatable model (needs `show`) |
+
+```bash
+# Read-only pages
+php scribe make:pages Book --artifact=library --only=index,show
+
+# Everything but the deletion
+php scribe make:pages Book --artifact=library --except=destroy
+```
+
+The pages link to what is generated only: without `destroy`, neither the layout, the quick view nor the table rows offer the delete dialog; without `index`, the breadcrumbs do not link to it. An operation whose routes are not registered (`book.index`, `book-translation.store`, …), or the translations of a model without translatable fields, is left out with a warning, and is an error when asked by `--only`.
+
+`make:component {name}` creates one component. In an application with a frontend stack (or given `--type`), it writes a component of that stack; otherwise, or with `--stack=blade`, `--view` or `--inline`, a Blade view component as before:
+
+```bash
+php scribe make:component Widgets/EmptyState                                  # resources/js/components/Widgets/EmptyState.vue
+php scribe make:component ConfirmBox --artifact=library --type=dialog         # modules/library/components/ConfirmBox.vue
+php scribe make:component BookTable --artifact=library --model=Book --type=table   # modules/library/pages/book/partials/BookTable.vue
+```
+
+| Type | Component |
+| --- | --- |
+| `blank` (default) | An empty component with its slot |
+| `dialog` | A modal with a title, a trigger slot and a content slot receiving `close` |
+| `form` | The model's create form (`{Name}.vue`) and its schema (`{Name}.form.ts`) |
+| `table` | The model's table (`{Name}.vue`) and its columns (`{Name}.columns.ts`), without row actions |
+| `select` | A select of the model's records (`{Name}.vue`) and the loader of its options (`use{Model}Options.ts`) |
+| `summary` | The model's summary |
+
+`form`, `table`, `select` and `summary` need `--model` (with `--artifact`); the relation selects and filter options they import are written when missing.
+
+`make:panel` and `make:pages` end with `lang:sync`, then regenerate the Wayfinder routes the pages import (`wayfinder:generate --with-form`); `make:field` runs `lang:sync` too when the application has JSON translations. `lang:sync` writes every available locale's `lang/{locale}.json` from the application's `lang/{locale}/*.php` (as `{file}.{key}`) and the artifacts' (as `{artifact}::{file}.{key}`, a null value as empty): the synced keys are added or updated and the other keys kept, or with `--fresh` the file is rebuilt from the PHP translations only. Existing files are kept unless `--force` is given, and running a command again adds nothing twice; every file written or edited is reported, and a place that cannot be found (a list edited by hand) is reported to be completed by hand.
