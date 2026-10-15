@@ -177,6 +177,16 @@ The translation model is generated at runtime. Add `--with-translation-file` to 
 ## 5. Automatic Discovery & Autoloading
 
 The Ugarit Application Kernel automatically discovers all artifacts inside the `artifacts/` folder:
-- **Service Providers:** Providers matching `artifacts/{artifact}/src/Providers/*ServiceProvider.php` are auto-registered.
+- **Service Providers:** The providers listed by the artifact's `art.php` (`$providers`) or its `composer.json` (`extra.ugarit.providers`) are registered.
 - **PSR-4 Autoloading:** Namespaces conforming to `Ugarit\Artifacts\{Artifact}\...` are dynamically mapped to `artifacts/{artifact}/src/`.
-- **Database Migrations & Seeders:** Seeders inheriting from `Heritage\Database\Seeder\ArtifactSeeder` are discovered and orchestrated via `DatabaseSeeder`.
+- **Resources:** The kernel loads every artifact's resources by convention, so its service provider only binds its services (an artifact disabled in `config/artifacts.php` is skipped):
+
+| Path | Loaded as |
+| --- | --- |
+| `config/*.php` | Merged under the file's name (`config/geography.php` → `config('geography')`), before the artifact's providers are registered; published with `vendor:publish --tag={artifact}-config` |
+| `database/migrations` | A migration path |
+| `lang` | Translations under the artifact id (`__('library::genre.attributes.name.label')`) |
+| `resources/views` | Views under the artifact id (`view('library::index')`) |
+| `routes/web.php`, `routes/api.php` | Route files, unless the routes are cached |
+
+- **Database Seeders:** The artifact's `{Artifact}DatabaseSeeder` (or `DatabaseSeeder`) is discovered and orchestrated via `DatabaseSeeder`; it need not be registered by its provider.
