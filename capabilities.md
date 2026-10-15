@@ -20,6 +20,8 @@
     - [Failed Outcomes](#failed-outcomes)
     - [Lower-Level API](#lower-level-api)
 - [CLI Scaffolding](#cli-scaffolding)
+    - [Generating a Slice](#generating-a-slice)
+    - [Generating the Parts](#generating-the-parts)
 
 <a name="introduction"></a>
 ## Introduction
@@ -435,6 +437,87 @@ An Inertia response without a component, or a route redirect without a route nam
 ## CLI Scaffolding
 
 Every generator accepts `--artifact`. Companion classes are given relative to their conventional folder (`Parcels/`, `Contracts/Repositories/`, `Enums/`, `Outcomes/`) or fully-qualified; a class that does not exist yet produces a warning.
+
+<a name="generating-a-slice"></a>
+### Generating a Slice
+
+`make:capabilities` generates everything a model's capabilities need, each part by its own generator:
+
+```bash
+php scribe make:capabilities Department --artifact=company
+```
+
+| Part | Class |
+| --- | --- |
+| Repository | `Contracts/Repositories/Department/DepartmentRepositoryInterface`, `Repositories/Department/DepartmentRepository` |
+| Policy | `Policies/Department/DepartmentPolicy` (every ability is granted until restricted there) |
+| Results | `Enums/Department/Capabilities/{Index…s,Create,Show,Edit,Save,Destroy}…Result` |
+| Parcels | `Parcels/Department/Capabilities/{Index,Create,Show,Edit,Save,Destroy}DepartmentParcel` |
+| Outcome | `Outcomes/Department/DepartmentOutcome` (offers to view a saved record) |
+| Capabilities | `Capabilities/Department/IndexDepartmentsCapability`, `CreateDepartmentCapability`, … each with `#[Authorize]` |
+| Requests | `Http/Requests/Department/Capabilities/{Store,Update,Destroy}DepartmentRequest` with `#[ForAction]` |
+| Resource | `Http/Resources/Department/DepartmentResource` |
+| Controller | `Http/Controllers/Department/Capabilities/DepartmentController` |
+| Lang | `lang/en/department.php`, unless it exists |
+
+The fields, rules and filters are read from the model: its `$fillable` columns typed by `$casts` (a column ending in `_id` is an integer, validated with `exists` on its model's table; a date cast is validated as a date), and its translatable attributes, which travel in a `translations` payload. Fill `$fillable` before generating; with `--force` the slice is regenerated. The command ends by printing the route to register:
+
+```php
+Route::resource('department', DepartmentController::class);
+```
+
+With `--routes` it registers the route itself in `routes/web.php` (the artifact's, or the application's): it imports the controller as `DepartmentCapabilitiesController` and adds the route to the file's last group, or creates the file with a `web` and `auth` group. A model whose route is already registered is left untouched.
+
+For a translatable model, the show and edit capabilities load its `translations`, the resource returns them keyed by locale (`'translations' => $this->whenLoaded(...)`), the policy has a `translate()` ability, and the command generates its translations sub-resource too, as the `Branch` one is written:
+
+| Part | Class |
+| --- | --- |
+| Repository | `Contracts/Repositories/Department/DepartmentTranslationRepositoryInterface`, `Repositories/Department/DepartmentTranslationRepository` (a `TranslationRepository`) |
+| Results | `Enums/Department/Capabilities/Translation/{Save,Destroy}DepartmentTranslationResult` (`translation.saved`, `translation.deleted`) |
+| Parcels | `Parcels/Department/Capabilities/Translation/{Save,Destroy}DepartmentTranslationParcel` |
+| Capabilities | `Capabilities/Department/Translation/{Save,Destroy}DepartmentTranslationCapability`, with `#[Authorize('translate', Department::class)]` |
+| Requests | `Http/Requests/Department/Capabilities/Translation/{Store,Update,Destroy}DepartmentTranslationRequest`: an available locale the model has no translation in yet, the translated fields (`UniqueTranslation` for a unique one), and the confirmation of the deletion |
+| Resource | `Http/Resources/Department/Translation/DepartmentTranslationResource` |
+| Controller | `Http/Controllers/Department/Capabilities/DepartmentTranslationController` (`store`, `update`, `destroy`) |
+
+Its route is nested in the model's and scoped, so a translation of another record answers 404:
+
+```php
+Route::resource('{department}/department-translation', DepartmentTranslationCapabilitiesController::class)
+    ->only(['store', 'update', 'destroy'])
+    ->scoped(['department_translation' => 'id']);
+```
+
+The translation stubs (`stubs/translation/{repository,repository.interface,parcel.save,parcel.destroy,capability.save,capability.destroy,request.store,request.update,request.destroy,resource,controller}.stub`) may be copied to the application's `stubs/translation` folder to be replaced.
+
+<a name="generating-the-parts"></a>
+### Generating the Parts
+
+```bash
+# Every capability operation: index, create, show, edit, save, destroy (all but create need --repository)
+php scribe make:capability Department/ShowDepartment --artifact=company --operation=show \
+    --parcel=Department/Capabilities/ShowDepartmentParcel \
+    --repository=Department/DepartmentRepositoryInterface \
+    --result=Department/Capabilities/ShowDepartmentResult \
+    --outcome=Department/DepartmentOutcome
+
+# The parcel of an operation (create, show, edit, save, destroy), or a QueryParcel for a listing
+php scribe make:parcel Department/Capabilities/SaveDepartmentParcel --artifact=company --operation=save --model=Department
+php scribe make:parcel Department/Capabilities/IndexDepartmentParcel --artifact=company --query --model=Department
+
+# Repository contract and implementation, outcome, policy
+php scribe make:repository Department --artifact=company
+php scribe make:outcome Department --artifact=company --result=Department/Capabilities/SaveDepartmentResult
+php scribe make:policy DepartmentPolicy --artifact=company --model=Department
+
+# A request whose rules come from the model (store, update, destroy) and that authorizes its action
+php scribe make:request StoreDepartmentRequest --artifact=company --capability --model=Department \
+    --operation=store --action=Capabilities/Department/SaveDepartmentCapability
+
+# Resource listing the model's fields; controller running the capabilities
+php scribe make:resource DepartmentResource --artifact=company --model=Department
+php scribe make:controller DepartmentController --artifact=company --capabilities --model=Department
+```
 
 ```bash
 # Capability typed to its Parcel, with an injected repository and its Result/Outcome
