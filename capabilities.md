@@ -21,6 +21,7 @@
     - [Lower-Level API](#lower-level-api)
 - [CLI Scaffolding](#cli-scaffolding)
     - [Generating a Slice](#generating-a-slice)
+    - [Generating a Model With Its Slice](#generating-a-model-with-its-slice)
     - [Generating the Parts](#generating-the-parts)
 
 <a name="introduction"></a>
@@ -490,6 +491,22 @@ Route::resource('{department}/department-translation', DepartmentTranslationCapa
 
 The translation stubs (`stubs/translation/{repository,repository.interface,parcel.save,parcel.destroy,capability.save,capability.destroy,request.store,request.update,request.destroy,resource,controller}.stub`) may be copied to the application's `stubs/translation` folder to be replaced.
 
+<a name="generating-a-model-with-its-slice"></a>
+### Generating a Model With Its Slice
+
+`make:model --all` generates everything at once: the model, its migration, factory and seeder, its slice and its routes. Declare the fields with `--fields`, as `name:type[:modifier...]` separated by commas:
+
+```bash
+php scribe make:model Department --artifact=company --all \
+    --fields="branch_id:foreignId,slug:string:unique,name:string:translatable,active:boolean"
+```
+
+| Types | Modifiers |
+| --- | --- |
+| `string`, `text`, `integer`, `bigInteger`, `boolean`, `decimal`, `float`, `json`, `date`, `dateTime`, `foreignId` | `nullable`, `unique`, `index`, `translatable` |
+
+The fields become the model's `$fillable`, `$casts` and `$translatable` (a translatable field makes the model translatable; a translatable `string` falls back to its `slug`), a `belongsTo()` relation for each foreign key with its `hasMany()` inverse on the related model when it exists (`Author::books()` for a book's `author_id`), the migration's columns (`foreignId` is `constrained()`) and the factory's state; the slice is then read from that model. Without `--fields`, the command asks for the fields one by one (type and modifiers), or uses a name, a unique slug and an active flag when none is given or the command is not interactive.
+
 <a name="generating-the-parts"></a>
 ### Generating the Parts
 
@@ -510,9 +527,10 @@ php scribe make:repository Department --artifact=company
 php scribe make:outcome Department --artifact=company --result=Department/Capabilities/SaveDepartmentResult
 php scribe make:policy DepartmentPolicy --artifact=company --model=Department
 
-# A request whose rules come from the model (store, update, destroy) and that authorizes its action
+# A request whose rules come from the model (store, update, destroy) and that authorizes its action;
+# --nullable lists the fields accepted empty (make:capabilities passes it on, make:model fills it from its nullable fields)
 php scribe make:request StoreDepartmentRequest --artifact=company --capability --model=Department \
-    --operation=store --action=Capabilities/Department/SaveDepartmentCapability
+    --operation=store --action=Capabilities/Department/SaveDepartmentCapability --nullable=description
 
 # Resource listing the model's fields; controller running the capabilities
 php scribe make:resource DepartmentResource --artifact=company --model=Department

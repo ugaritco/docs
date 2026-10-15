@@ -706,7 +706,7 @@ class BranchSeeder extends Seeder
 php scribe make:model Branch --translatable
 php scribe make:model Branch -t
 
-# Inside an artifact, with migration, factory, seeder, controller and requests
+# Inside an artifact, with migration, factory, seeder and the capabilities slice
 php scribe make:model Branch --artifact=company --translatable --all
 
 # Also generate a physical BranchTranslation class

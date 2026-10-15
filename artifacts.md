@@ -91,6 +91,9 @@ Generate a model's repository, policy, results, parcels, outcome, capabilities, 
 
 ```bash
 php scribe make:capabilities Product --artifact=Catalog
+
+# Or everything at once: the model from its fields, its migration, factory, seeder, slice and routes
+php scribe make:model Product --artifact=Catalog --all --fields="category_id:foreignId,sku:string:unique,name:string:translatable,price:decimal,active:boolean"
 ```
 
 See [Capabilities: Generating a Slice](/docs/{{version}}/capabilities#generating-a-slice) for the generated classes and the generator of each part.
