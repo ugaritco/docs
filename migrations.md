@@ -57,6 +57,14 @@ php scribe make:migration create_products_table -t
 php scribe make:migration create_products_table --translatable
 ```
 
+The `--fields` option writes the created table's columns, as `name:type[:modifier...]` separated by commas; a `translatable` field makes the table translatable. The types are `string`, `text`, `integer`, `bigInteger`, `boolean`, `decimal`, `float`, `json`, `date`, `dateTime` and `foreignId` (constrained), and the modifiers `nullable`, `unique`, `index` and `translatable`:
+
+```shell
+php scribe make:migration create_products_table --fields="category_id:foreignId,sku:string:unique,name:string:translatable,price:decimal"
+```
+
+Without `--fields`, a translatable table gets a unique `slug` and a translatable `name`.
+
 > [!NOTE]
 > Migration stubs may be customized using [stub publishing](/docs/{{version}}/scribe#stub-customization).
 
