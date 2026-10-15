@@ -458,7 +458,7 @@ php scribe make:capabilities Department --artifact=company
 | Parcels | `Parcels/Department/Capabilities/{Index,Create,Show,Edit,Save,Destroy}DepartmentParcel` |
 | Outcome | `Outcomes/Department/DepartmentOutcome` (offers to view a saved record) |
 | Capabilities | `Capabilities/Department/IndexDepartmentsCapability`, `CreateDepartmentCapability`, … each with `#[Authorize]` |
-| Requests | `Http/Requests/Department/Capabilities/{Store,Update,Destroy}DepartmentRequest` with `#[ForAction]` |
+| Requests | `Http/Requests/Department/Capabilities/{Store,Update,Destroy}DepartmentRequest` with `#[ForAction]`; the destroy request requires a `confirmation` equal to the record's slug (else its required, untranslated name, else its id), the field the generated delete page asks for |
 | Resource | `Http/Resources/Department/DepartmentResource` |
 | Controller | `Http/Controllers/Department/Capabilities/DepartmentController` |
 | Lang | `lang/en/department.php`, unless it exists |
@@ -602,7 +602,8 @@ php scribe make:capability Branch/IndexBranches --artifact=company --parcel=Bran
 # Feature with Parcel check and a flow (see Features: Generating Features)
 php scribe make:feature Branch/SaveBranch --artifact=company --parcel=Branch/Features/SaveBranchParcel --result=Branch/Features/SaveBranchResult
 
-# Result enum; FEEDBACK is guessed from the verb (Save → saved, Destroy → deleted, ...)
+# Result enum; FEEDBACK is guessed from the verb (Save → saved, Destroy → deleted, ...),
+# and each case is commented with the feedback key it reads
 php scribe make:result Branch/Capabilities/SaveBranch --artifact=company
 php scribe make:result Branch/Capabilities/ArchiveBranch --artifact=company --feedback=archived
 
