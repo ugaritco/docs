@@ -7,6 +7,7 @@
     - [Starter Kits](#php-starter-kits)
 - [Using React, Svelte, or Vue](#using-react-svelte-or-vue)
     - [Inertia](#inertia)
+    - [Organizing Pages by Application](#organizing-pages-by-application)
     - [Starter Kits](#inertia-starter-kits)
 - [Bundling Assets](#bundling-assets)
 
@@ -156,6 +157,73 @@ As you can see, Inertia allows you to leverage the full power of React, Svelte, 
 #### Server-Side Rendering
 
 If you're concerned about diving into Inertia because your application requires server-side rendering, don't worry. Inertia offers [server-side rendering support](https://inertiajs.com/server-side-rendering). And, when deploying your application via [Ugarit Cloud](https://cloud.ugarit.com) or [Ugarit Forge](https://forge.ugarit.com), it's a breeze to ensure that Inertia's server-side rendering process is always running.
+
+<a name="organizing-pages-by-application"></a>
+### Organizing Pages by Application
+
+Most applications serve more than one frontend: a public website, the authentication screens, and an administration panel. Rather than mixing their pages and layouts inside shared `resources/js/pages` and `resources/js/layouts` directories, Ugarit lets each of them live in its own directory under `resources/js/apps`. Every application owns its pages, its layouts, and anything else only it uses:
+
+```text
+resources/js/
+├── apps/
+│   ├── web/
+│   │   ├── layouts/
+│   │   └── pages/
+│   │       └── Welcome.vue
+│   ├── auth/
+│   │   ├── layouts/
+│   │   └── pages/
+│   │       └── Login.vue
+│   └── panel/
+│       ├── artifacts/
+│       │   └── i18n/
+│       │       └── pages/
+│       │           └── locale/Index.vue
+│       ├── layouts/
+│       └── pages/
+│           ├── Dashboard.vue
+│           └── settings/Profile.vue
+├── components/
+├── composables/
+└── app.ts
+```
+
+A page is named after the application it belongs to, so its first segment is the application's directory and the rest is its path within that application's `pages` directory. Two applications may therefore each have their own `Dashboard` page without ever colliding:
+
+```php
+Route::inertia('/', 'web/Welcome');            // resources/js/apps/web/pages/Welcome.vue
+Route::inertia('panel', 'panel/Dashboard');    // resources/js/apps/panel/pages/Dashboard.vue
+
+return Inertia::render('auth/Login');          // resources/js/apps/auth/pages/Login.vue
+return Inertia::render('panel/settings/Profile');
+```
+
+Pages that belong to an [artifact](/docs/{{version}}/artifacts) keep the `artifact::path` form and are found inside the panel, at `resources/js/apps/panel/artifacts/{artifact}/pages`:
+
+```php
+return Inertia::render('i18n::locale/Index');  // resources/js/apps/panel/artifacts/i18n/pages/locale/Index.vue
+```
+
+Your `app.ts` resolves a page by the same rule and chooses the layout from the application the page belongs to:
+
+```ts
+const appPages = import.meta.glob('./apps/*/pages/**/*.vue');
+const artifactPages = import.meta.glob('./apps/panel/artifacts/*/pages/**/*.vue');
+
+function pageFile(name: string): string {
+    if (name.includes('::')) {
+        const [artifact, page] = name.split('::', 2);
+
+        return `./apps/panel/artifacts/${artifact}/pages/${page}.vue`;
+    }
+
+    const [app, ...segments] = name.split('/');
+
+    return `./apps/${app}/pages/${segments.join('/')}.vue`;
+}
+```
+
+Components, composables, and other code shared by several applications stay at the root of `resources/js`. When the `resources/js/apps` directory exists, the framework expects pages rendered through a [capability's](/docs/{{version}}/capabilities) `page` response to follow this naming; applications without it keep finding their pages in `resources/js/pages`.
 
 <a name="inertia-starter-kits"></a>
 ### Starter Kits
