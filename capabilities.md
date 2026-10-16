@@ -758,8 +758,8 @@ The files are written in the frontend stack of the application: `--stack=` names
 | `layouts/{Artifact}Layout.vue`, `layouts/index.ts` | The artifact layout with its collapsible inner sidebar |
 | `pages/artifact/Show.vue`, `types/artifact/summary.d.ts` | The [summary page](#the-artifact-summary) and the types of its data, as `make:summary-page` writes them; the summary capability and its route are generated first by `make:summary` when the artifact has none |
 | `artifacts/{artifact}/lang/en/artifact.php` | The artifact's name and description (`{artifact}::artifact.name`, `{artifact}::artifact.description`) |
-| `resources/js/app.ts` | The artifact's pages in the Inertia pages glob |
-| `vite.config.ts`, `tsconfig.json` | The `@artifact/{artifact}` alias, and the artifact's `lang` folder in `additionalLangPaths` |
+| `resources/js/app.ts` | The artifact's pages in the Inertia pages glob, unless it globs every artifact's pages (`./apps/panel/artifacts/*/pages/**/*.vue`) |
+| `vite.config.ts`, `tsconfig.json` | The `@artifact` alias of every artifact's panel (`@artifact/library/...` is `resources/js/apps/panel/artifacts/library/...`), once, and the artifact's `lang` folder in `additionalLangPaths` |
 | `apps/panel/composables/usePanelModuleNav.ts` | The artifact's item in the `--group` of the main sidebar, with its icon |
 
 The stubs name the artifact with the `[[ artifact ]]`, `[[ Artifact ]]` and `[[ artifactCamel ]]` placeholders; the former `[[ module ]]`, `[[ Module ]]` and `[[ moduleCamel ]]` are still filled for the stubs an application overrides.
