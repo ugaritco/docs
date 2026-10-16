@@ -23,6 +23,7 @@
     - [Generating a Slice](#generating-a-slice)
     - [Generating a Model With Its Slice](#generating-a-model-with-its-slice)
     - [Adding Fields to a Model](#adding-fields-to-a-model)
+    - [Generating a Capability With Everything It Needs](#generating-a-capability-with-everything-it-needs)
     - [Generating the Parts](#generating-the-parts)
     - [Generating the UI](#generating-the-ui)
 
@@ -556,6 +557,62 @@ php scribe make:field Department --artifact=company \
 | Lang | The attribute's label and placeholder, in every locale file of the model |
 
 Each file keeps its formatting and imports; a file that does not exist (a model without a slice) or a list that was rewritten by hand is reported and left to be edited. A field the model already has, or a translatable field on a model without a translation table, stops the command before anything is written. The new columns are nullable on the table (a boolean defaults to `false`, a number to `0`) so the existing rows remain valid, while the request requires them unless they are `nullable`. Use `--without-migration` to edit the files only.
+
+<a name="generating-a-capability-with-everything-it-needs"></a>
+### Generating a Capability With Everything It Needs
+
+A capability that is not one of a model's operations (switching the language, publishing a product) needs the same parts as a slice: `make:capability --all` generates them from one line, each by its own command, as `make:model --all` does for a model:
+
+```bash
+php scribe make:capability Settings/SetLocale --artifact=i18n --all --fields=code:string
+```
+
+| Part | Generated |
+| --- | --- |
+| Result | `Enums/Settings/Capabilities/SetLocaleResult`, whose feedback is its snake name (`set_locale`) unless `--feedback` |
+| Parcel | `Parcels/Settings/Capabilities/SetLocaleParcel`, a nullable property for each of `--fields` |
+| Capability | `Capabilities/Settings/SetLocaleCapability`, typed to the Parcel and returning the Result (with `--repository`, `--authorize`, `--model` as usual) |
+| Request | `Http/Requests/Settings/Capabilities/SetLocaleRequest`, `#[ForAction(SetLocaleCapability::class)]`, a `required` (or, for `?type`, `nullable`) rule for each field |
+| Controller | A `setLocale()` method in `Http/Controllers/Settings/SettingsController`, created if missing |
+| Route | `Route::post('settings/set-locale', [SettingsController::class, 'setLocale'])->name('settings.set-locale');` in the artifact's `routes/web.php` (its last group); a route already registered for that verb and URI is kept |
+| Feedback | `responses.set_locale` and `responses.failed_set_locale` in `lang/en/responses.php`, unless they exist |
+| Component | An empty component of the frontend stack: `components/Settings/SetLocale.vue` in the artifact's panel folder |
+
+`--fields` lists the input as `name:type`, `string` by default, `?type` when optional: `code:string,note:?string,count:int` (types: `string`, `int`, `bool`, `float`, `array`). A capability with input (fields, `--parcel`, or a route other than GET) gets a Parcel and a Request; one without accepts no Parcel (`?Parcel $data = null`) and its controller passes `null`.
+
+The controller method redirects back with the feedback (`back()`); for a GET it renders `--page` (`page()`) or answers JSON (`json()`), the data presented by `--resource`. The other parts are chosen with:
+
+| Option | Default |
+| --- | --- |
+| `--route=verb:uri` | POST with input, otherwise GET, on the kebab name (`settings/set-locale`); a URI alone keeps the default verb |
+| `--route-name` | The dotted kebab name (`settings.set-locale`) |
+| `--controller` | The controller of the folder (`Settings/SettingsController`), or `{Name}Controller` without a folder |
+| `--method` | The camel name (`setLocale`) |
+| `--feedback` | The snake name (`set_locale`) |
+
+The language settings of the i18n artifact are two such lines; only the logic of `perform()` and the domain rule of the request are written by hand:
+
+```bash
+php scribe make:capability Settings/EditLocaleSetting --artifact=i18n --all \
+    --repository=Locale/LocaleRepositoryInterface --feedback=loaded \
+    --controller=Settings/LocaleController --method=edit \
+    --route=get:settings/locale --route-name=setting.locale.edit \
+    --page=i18n::settings/Locale --resource=Locale/LocaleResource
+
+php scribe make:capability Settings/SetLocale --artifact=i18n --all --fields=code:string \
+    --controller=Settings/LocaleController --method=set \
+    --route=post:settings/locale --route-name=setting.locale.set
+```
+
+`make:feature --all` does the same for a Feature (`Enums/…/Features`, `Parcels/…/Features`, a `--feature` request); a Feature always takes its Parcel, so its route is POST by default. With `--force` the generated classes are overwritten; a controller method or route that exists is kept.
+
+`make:parcel --fields` and `make:request --input` take the same typed fields on their own:
+
+```bash
+php scribe make:parcel Settings/Capabilities/SetLocaleParcel --artifact=i18n --fields=code:string
+php scribe make:request Settings/SetLocaleRequest --artifact=i18n --capability --input=code:string \
+    --action=Capabilities/Settings/SetLocaleCapability
+```
 
 <a name="generating-the-parts"></a>
 ### Generating the Parts
