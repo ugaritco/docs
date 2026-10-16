@@ -615,17 +615,17 @@ php scribe make:parcel Branch/Capabilities/ShowBranchParcel --artifact=company
 
 The generated repository property is named after the contract (`BranchRepositoryInterface` becomes `$branches`). Results whose name contains `Translation` get a `translation.` feedback group. With `--outcome` the generated code returns `BranchOutcome::fromResult(...)` (pass the artifact Outcome); without `--result`/`--outcome` it returns `Outcome::success()` / `Outcome::failure()`. Pass the data as the second argument of `fromResult()`.
 
-<a name="the-module-summary"></a>
-### The Module Summary
+<a name="the-artifact-summary"></a>
+### The Artifact Summary
 
-An artifact's module has a summary: the page its panel module opens on, at `panel/artifact/{artifact}`. It is generated in two parts, the backend by `make:summary` and the frontend by `make:summary-page`:
+An artifact has a summary: the page its panel opens on, at `panel/artifact/{artifact}`. It is generated in two parts, the backend by `make:summary` and the frontend by `make:summary-page`:
 
 ```bash
-php scribe make:summary library        # ShowModuleCapability, its result, ModuleController and the route
-php scribe make:summary-page library   # the summary page of the panel module, and the types of its data
+php scribe make:summary library        # ShowArtifactCapability, its result, ArtifactController and the route
+php scribe make:summary-page library   # the summary page of the artifact's panel, and the types of its data
 ```
 
-`make:artifact` runs `make:summary` for every artifact it creates (unless `--minimal`), and with `--panel`, or when it is confirmed at the prompt, `make:panel`, which writes the summary page with the rest of the module:
+`make:artifact` runs `make:summary` for every artifact it creates (unless `--minimal`), and with `--panel`, or when it is confirmed at the prompt, `make:panel`, which writes the summary page with the rest of the panel:
 
 ```bash
 php scribe make:artifact library --description="Books, their authors and genres" --panel
@@ -635,10 +635,12 @@ php scribe make:artifact library --description="Books, their authors and genres"
 
 | File | Content |
 | --- | --- |
-| `src/Capabilities/Module/ShowModuleCapability.php` | Returns `ArtifactSummary::of('{artifact}')`; edit it to add to the summary |
-| `src/Enums/Module/Capabilities/ShowModuleResult.php` | Its result, with the `showed` feedback |
-| `src/Http/Controllers/Module/ModuleController.php` | `show()` renders `{artifact}::module/Show` with the summary as `data` (JSON for clients expecting JSON) |
-| `routes/web.php` | `Route::get('/', [ModuleController::class, 'show'])->name('{artifact}.module.show')`, in place of a `Route::inertia()` summary route, else first in the artifact's group, else in a new `panel/artifact/{artifact}` group |
+| `src/Capabilities/Artifact/ShowArtifactCapability.php` | Returns `ArtifactSummary::of('{artifact}')`; edit it to add to the summary |
+| `src/Enums/Artifact/Capabilities/ShowArtifactResult.php` | Its result, with the `showed` feedback |
+| `src/Http/Controllers/Artifact/ArtifactController.php` | `show()` renders `{artifact}::artifact/Show` with the summary as `data` (JSON for clients expecting JSON) |
+| `routes/web.php` | `Route::get('/', [ArtifactController::class, 'show'])->name('{artifact}.artifact.show')`, in place of a `Route::inertia()` summary route, else first in the artifact's group, else in a new `panel/artifact/{artifact}` group |
+
+A former `{artifact}.module.show` route, in whichever route file of the artifact holds it, is replaced by the new one; a `Route::controller(ModuleController::class)` group left holding only it is unwrapped, and the unused `ModuleController` import dropped. The former `Module` classes are not deleted.
 
 Its stubs may be copied to the application's `stubs/summary/{capability,controller}.stub` to be replaced.
 
@@ -651,20 +653,20 @@ Its stubs may be copied to the application's `stubs/summary/{capability,controll
 | `entities` | A model each from `src/Models` (translation models aside): its `table`, `records`, `created_this_month`, `active` records (with an `active` column), `trashed` records (when soft deletable), `translations`, `last_updated_at`, the `capabilities` and `features` of `src/Capabilities/{Model}` and `src/Features/{Model}`, and the `url` of its `{model}.index` route. A model whose table does not match it yet (its migration not run) has `available` false and no figures, rather than failing the summary |
 | `recent` | Its 8 latest updated records across its models: the `label` (the first filled of `name`, `title`, `label`, `full_name`, `email`, `slug`, `code`, translated, else its key), whether it was `created` or updated, and the `url` of its `{model}.show` route |
 
-`make:summary-page {artifact} {--stack=} {--force}` writes, in the artifact's panel module (created by `make:panel`):
+`make:summary-page {artifact} {--stack=} {--force}` writes, in the artifact's panel folder (created by `make:panel`):
 
 | File | Content |
 | --- | --- |
-| `pages/module/Show.vue` | The artifact's identity and version, a card per total, a card per entity (its sidebar icon, records, badges of the records added this month, active, deleted, translations, capabilities and features, linking to its listing), the latest activity linking to each record, and the artifact's requirements and provided capabilities |
-| `types/module/summary.d.ts` | `ModuleSummary` and its parts, the shape of `ArtifactSummary` |
+| `pages/artifact/Show.vue` | The artifact's identity and version, a card per total, a card per entity (its sidebar icon, records, badges of the records added this month, active, deleted, translations, capabilities and features, linking to its listing), the latest activity linking to each record, and the artifact's requirements and provided capabilities |
+| `types/artifact/summary.d.ts` | The `ArtifactSummary` interface and its parts, the shape of `Heritage\Foundation\Support\ArtifactSummary` |
 | `lang/{en,ar}/summary.php` | The page's labels, in the application, when missing |
 
-When the artifact has no `ShowModuleCapability`, `make:panel` and `make:summary-page` run `make:summary` first.
+When the artifact has no `ShowArtifactCapability`, `make:panel` and `make:summary-page` run `make:summary` first.
 
 <a name="generating-the-ui"></a>
 ### Generating the UI
 
-The frontend has its own commands, named as the backend ones are; the backend commands above write nothing for it. Once an artifact and its models exist, `make:panel` writes the artifact's panel module in `resources/js/apps/panel/modules/{artifact}`, and with `--all` the pages of its models, from what the artifact declares:
+The frontend has its own commands, named as the backend ones are; the backend commands above write nothing for it. Once an artifact and its models exist, `make:panel` writes the artifact's panel in `resources/js/apps/panel/artifacts/{artifact}`, imported through the `@artifact/{artifact}` alias, and with `--all` the pages of its models, from what the artifact declares:
 
 ```bash
 # Backend
@@ -672,35 +674,37 @@ php scribe make:artifact library --description="Books, their authors and genres"
 php scribe make:model Author --artifact=library --all --fields="name:string,slug:string:unique,active:boolean"
 php scribe make:model Book --artifact=library --all --fields="author_id:foreignId,title:string,price:decimal,active:boolean"
 
-# Frontend: the module, then every model with capabilities, in the order their tables were created
+# Frontend: the panel, then every model with capabilities, in the order their tables were created
 php scribe make:panel library --icon=Library --all --icons=Author:UserPen,Book:BookOpen
 ```
 
 The parts can be run alone:
 
 ```bash
-php scribe make:panel library --icon=Library                     # the module
+php scribe make:panel library --icon=Library                     # the panel
 php scribe make:summary-page library                             # the summary page alone
-php scribe make:pages Book --artifact=library --icon=BookOpen    # a model's pages (creates the module when needed)
+php scribe make:pages Book --artifact=library --icon=BookOpen    # a model's pages (creates the panel when needed)
 php scribe make:component BookCard --artifact=library --model=Book --type=summary   # one component
 php scribe lang:sync                                             # the translations only
 ```
 
 The files are written in the frontend stack of the application: `--stack=` names it, else the `ui.stack` config, else it is detected from the dependencies of `package.json` (`vue` or `@inertiajs/vue3` for Vue, the only stack supported for now). Each stack has its stubs under `stubs/{stack}`, and a stub copied to the application's `stubs/ui/{stack}` folder, under the same path, replaces the framework's.
 
-`make:panel {artifact} {--icon=} {--group=master_data} {--all} {--icons=Model:Icon,…}` creates the module and registers it:
+`make:panel {artifact} {--icon=} {--group=master_data} {--all} {--icons=Model:Icon,…}` creates the artifact's panel and registers it:
 
 | File | Content |
 | --- | --- |
-| `navigation.ts` | The module's inner sidebar: its summary, then its entities (`{artifact}Entities()`, filled by `make:pages`) |
-| `layouts/{Artifact}Layout.vue`, `layouts/index.ts` | The module layout with its collapsible inner sidebar |
-| `pages/module/Show.vue`, `types/module/summary.d.ts` | The [summary page](#the-module-summary) and the types of its data, as `make:summary-page` writes them; the summary capability and its route are generated first by `make:summary` when the artifact has none |
-| `artifacts/{artifact}/lang/en/module.php` | The module's name and the artifact's description |
-| `resources/js/app.ts` | The module's pages in the Inertia pages glob |
-| `vite.config.ts`, `tsconfig.json` | The `@module/{artifact}` alias, and the artifact's `lang` folder in `additionalLangPaths` |
-| `apps/panel/composables/usePanelModuleNav.ts` | The module's item in the `--group` of the main sidebar, with its icon |
+| `navigation.ts` | The artifact's inner sidebar: its summary, then its entities (`{artifact}Entities()`, filled by `make:pages`) |
+| `layouts/{Artifact}Layout.vue`, `layouts/index.ts` | The artifact layout with its collapsible inner sidebar |
+| `pages/artifact/Show.vue`, `types/artifact/summary.d.ts` | The [summary page](#the-artifact-summary) and the types of its data, as `make:summary-page` writes them; the summary capability and its route are generated first by `make:summary` when the artifact has none |
+| `artifacts/{artifact}/lang/en/artifact.php` | The artifact's name and description (`{artifact}::artifact.name`, `{artifact}::artifact.description`) |
+| `resources/js/app.ts` | The artifact's pages in the Inertia pages glob |
+| `vite.config.ts`, `tsconfig.json` | The `@artifact/{artifact}` alias, and the artifact's `lang` folder in `additionalLangPaths` |
+| `apps/panel/composables/usePanelModuleNav.ts` | The artifact's item in the `--group` of the main sidebar, with its icon |
 
-`make:pages {model} --artifact= {--icon=} {--only=} {--except=}` creates the pages and components of a model, as the company module's are written, and adds the model to the module's inner sidebar:
+The stubs name the artifact with the `[[ artifact ]]`, `[[ Artifact ]]` and `[[ artifactCamel ]]` placeholders; the former `[[ module ]]`, `[[ Module ]]` and `[[ moduleCamel ]]` are still filled for the stubs an application overrides.
+
+`make:pages {model} --artifact= {--icon=} {--only=} {--except=}` creates the pages and components of a model, as the company artifact's are written, and adds the model to the artifact's inner sidebar:
 
 | File | Content |
 | --- | --- |
@@ -726,7 +730,7 @@ The pages offer six operations, all generated by default; `--only` and `--except
 
 | Operation | Files |
 | --- | --- |
-| `index` | The index page, the table and its columns, and the model's item in the module sidebar |
+| `index` | The index page, the table and its columns, and the model's item in the artifact sidebar |
 | `show` | The show page and its layout, the quick view dialog and the summary |
 | `create` | The create page, the create form and its dialog |
 | `edit` | The edit page, the update form and its dialog |
@@ -747,8 +751,8 @@ The pages link to what is generated only: without `destroy`, neither the layout,
 
 ```bash
 php scribe make:component Widgets/EmptyState                                  # resources/js/components/Widgets/EmptyState.vue
-php scribe make:component ConfirmBox --artifact=library --type=dialog         # modules/library/components/ConfirmBox.vue
-php scribe make:component BookTable --artifact=library --model=Book --type=table   # modules/library/pages/book/partials/BookTable.vue
+php scribe make:component ConfirmBox --artifact=library --type=dialog         # artifacts/library/components/ConfirmBox.vue
+php scribe make:component BookTable --artifact=library --model=Book --type=table   # artifacts/library/pages/book/partials/BookTable.vue
 ```
 
 | Type | Component |
