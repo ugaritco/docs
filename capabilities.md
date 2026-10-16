@@ -532,7 +532,7 @@ php scribe make:model Department --artifact=company --all \
 | --- | --- |
 | `string`, `text`, `integer`, `bigInteger`, `boolean`, `decimal`, `float`, `json`, `date`, `dateTime`, `foreignId` | `nullable`, `unique`, `index`, `translatable` |
 
-The fields become the model's `$fillable`, `$casts` and `$translatable` (a translatable field makes the model translatable; a translatable `string` falls back to its `slug`), a `belongsTo()` relation for each foreign key with its `hasMany()` inverse on the related model when it exists (`Author::books()` for a book's `author_id`), the migration's columns (`foreignId` is `constrained()`) and the factory's state; the slice is then read from that model. A foreign key whose model is not in the artifact may name a model of another artifact: `country_id` of i18n's `Locale` relates to `Ugarit\Artifacts\Geography\Models\Country`, which the model imports (without adding the inverse to the other artifact), and the panel pages show it as a select of the countries, like a relation within the artifact. A bare model name always resolves inside the artifact, even when PHP has a global class of that name (`Locale`). Without `--fields`, the command asks for the fields one by one (type and modifiers), or uses a name, a unique slug and an active flag when none is given or the command is not interactive.
+The fields become the model's `$fillable`, `$casts` and `$translatable` (a translatable field makes the model translatable; a translatable `string` falls back to its `slug`), a `belongsTo()` relation for each foreign key with its `hasMany()` inverse on the related model when it exists (`Author::books()` for a book's `author_id`), the migration's columns (`foreignId` is `constrained()`) and the factory's state; the slice is then read from that model. A foreign key whose model is not in the artifact may name a model of another artifact: `country_id` of i18n's `Locale` relates to `Ugarit\Artifacts\Geography\Models\Country`, which the model imports (without adding the inverse to the other artifact); the requests validate it with `exists:countries,id`, the factory creates it with `Country::factory()` (both read the model's `country()` relation), and the panel pages show it as a select of the countries, like a relation within the artifact. A bare model name always resolves inside the artifact, even when PHP has a global class of that name (`Locale`). Without `--fields`, the command asks for the fields one by one (type and modifiers), or uses a name, a unique slug and an active flag when none is given or the command is not interactive.
 
 <a name="adding-fields-to-a-model"></a>
 ### Adding Fields to a Model
@@ -585,6 +585,9 @@ php scribe make:request StoreDepartmentRequest --artifact=company --capability -
 # Resource listing the model's fields; controller running the capabilities
 php scribe make:resource DepartmentResource --artifact=company --model=Department
 php scribe make:controller DepartmentController --artifact=company --capabilities --model=Department
+
+# A controller of your own capabilities: in an artifact, it extends Heritage\Routing\Controller (page(), back())
+php scribe make:controller Settings/LocaleController --artifact=i18n
 ```
 
 ```bash
