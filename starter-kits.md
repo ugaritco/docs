@@ -244,11 +244,13 @@ The majority of the frontend code is located in the `resources/js` directory. Yo
 
 ```text
 resources/js/
+├── apps/          # Each application's pages and layouts
+│   ├── auth/      # Authentication pages
+│   ├── panel/     # Dashboard and settings
+│   └── web/       # Welcome page
 ├── components/    # Reusable Vue components
 ├── composables/   # Vue composables / hooks
-├── layouts/       # Application layouts
 ├── lib/           # Utility functions and configuration
-├── pages/         # Page components
 └── types/         # TypeScript definitions
 ```
 
@@ -275,12 +277,14 @@ import { Switch } from '@/components/ui/switch'
 <a name="vue-available-layouts"></a>
 #### Available Layouts
 
-The Vue starter kit includes two different primary layouts for you to choose from: a "sidebar" layout and a "header" layout. The sidebar layout is the default, but you can switch to the header layout by modifying the layout that is imported at the top of your application's `resources/js/layouts/AppLayout.vue` file:
+The Vue starter kit includes two different primary layouts for you to choose from: a "sidebar" layout and a "header" layout. The sidebar layout is the default, but you can switch to the header layout by modifying the layout that is imported at the top of your application's `resources/js/apps/panel/layouts/AppLayout.vue` file:
 
 ```js
-import AppLayout from '@/layouts/app/AppSidebarLayout.vue'; // [tl! remove]
-import AppLayout from '@/layouts/app/AppHeaderLayout.vue'; // [tl! add]
+import AppLayout from '@/apps/panel/layouts/AppSidebarLayout.vue'; // [tl! remove]
+import AppLayout from '@/apps/panel/layouts/AppHeaderLayout.vue'; // [tl! add]
 ```
+
+Its pages and layouts are [organized by application](/docs/{{version}}/frontend#organizing-pages-by-application): the welcome page in `resources/js/apps/web`, the authentication pages in `resources/js/apps/auth`, and the dashboard and settings in `resources/js/apps/panel`, named `web/Welcome`, `auth/Login` and `panel/Dashboard`.
 
 <a name="vue-sidebar-variants"></a>
 #### Sidebar Variants
@@ -297,11 +301,11 @@ The sidebar layout includes three different variants: the default sidebar varian
 
 The authentication pages included with the Vue starter kit, such as the login page and registration page, also offer three different layout variants: "simple", "card", and "split".
 
-To change your authentication layout, modify the layout that is imported at the top of your application's `resources/js/layouts/AuthLayout.vue` file:
+To change your authentication layout, modify the layout that is imported at the top of your application's `resources/js/apps/auth/layouts/AuthLayout.vue` file:
 
 ```js
-import AuthLayout from '@/layouts/auth/AuthSimpleLayout.vue'; // [tl! remove]
-import AuthLayout from '@/layouts/auth/AuthSplitLayout.vue'; // [tl! add]
+import AuthLayout from '@/apps/auth/layouts/AuthSimpleLayout.vue'; // [tl! remove]
+import AuthLayout from '@/apps/auth/layouts/AuthSplitLayout.vue'; // [tl! add]
 ```
 
 <a name="livewire-customization"></a>
